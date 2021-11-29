@@ -36,6 +36,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
+import android.widget.ImageSwitcher;
 import android.widget.LinearLayout;
 
 import com.android.systemui.R;
@@ -55,6 +56,7 @@ import com.android.systemui.statusbar.events.SystemStatusAnimationScheduler;
 import com.android.systemui.statusbar.phone.NotificationIconAreaController;
 import com.android.systemui.statusbar.phone.NotificationPanelViewController;
 import com.android.systemui.statusbar.phone.PhoneStatusBarView;
+import com.android.systemui.statusbar.phone.StatusBar;
 import com.android.systemui.statusbar.phone.StatusBarHideIconsForBouncerManager;
 import com.android.systemui.statusbar.phone.StatusBarIconController;
 import com.android.systemui.statusbar.phone.StatusBarIconController.DarkIconManager;
@@ -63,6 +65,7 @@ import com.android.systemui.statusbar.phone.fragment.dagger.StatusBarFragmentCom
 import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallController;
 import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallListener;
 import com.android.systemui.statusbar.phone.panelstate.PanelExpansionStateManager;
+import com.android.systemui.statusbar.phone.TickerView;
 import com.android.systemui.statusbar.policy.EncryptionHelper;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 
@@ -70,8 +73,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
 
 import javax.inject.Inject;
+
+import dagger.Lazy;
 
 /**
  * Contains the collapsed status bar and handles hiding/showing based on disable flags
@@ -100,11 +107,14 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
     private View mCenteredIconArea;
     private int mDisabled1;
     private int mDisabled2;
+    private Lazy<Optional<StatusBar>> mStatusBarOptionalLazy;
     private DarkIconManager mDarkIconManager;
     private final StatusBarFragmentComponent.Factory mStatusBarFragmentComponentFactory;
     private final CommandQueue mCommandQueue;
     private final CollapsedStatusBarFragmentLogger mCollapsedStatusBarFragmentLogger;
     private final OperatorNameViewController.Factory mOperatorNameViewControllerFactory;
+    private View mLyricViewFromStub;
+    private View mLyricViewContainer;
     private final OngoingCallController mOngoingCallController;
     private final SystemStatusAnimationScheduler mAnimationScheduler;
     private final StatusBarLocationPublisher mLocationPublisher;
@@ -140,6 +150,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
             NotificationIconAreaController notificationIconAreaController,
             PanelExpansionStateManager panelExpansionStateManager,
             FeatureFlags featureFlags,
+	    Lazy<Optional<StatusBar>> statusBarOptionalLazy,
             StatusBarIconController statusBarIconController,
             StatusBarHideIconsForBouncerManager statusBarHideIconsForBouncerManager,
             KeyguardStateController keyguardStateController,
@@ -157,6 +168,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         mNotificationIconAreaController = notificationIconAreaController;
         mPanelExpansionStateManager = panelExpansionStateManager;
         mFeatureFlags = featureFlags;
+	mStatusBarOptionalLazy = statusBarOptionalLazy;
         mStatusBarIconController = statusBarIconController;
         mStatusBarHideIconsForBouncerManager = statusBarHideIconsForBouncerManager;
         mKeyguardStateController = keyguardStateController;
@@ -202,6 +214,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         showClock(false);
         initEmergencyCryptkeeperText();
         initOperatorName();
+        initLyricView();
         initNotificationIconArea();
         mAnimationScheduler.addCallback(this);
     }
@@ -297,9 +310,11 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
             if ((state1 & DISABLE_SYSTEM_INFO) != 0 || ((state2 & DISABLE2_SYSTEM_ICONS) != 0)) {
                 hideSystemIconArea(animate);
                 hideOperatorName(animate);
+                hideLyric(animate);
             } else {
                 showSystemIconArea(animate);
                 showOperatorName(animate);
+                showLyric(animate);
             }
         }
 
@@ -408,6 +423,18 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         int state = mAnimationScheduler.getAnimationState();
         if (state == IDLE || state == SHOWING_PERSISTENT_DOT) {
             animateShow(mSystemIconArea, animate);
+        }
+    }
+
+    public void showLyric(boolean animate) {
+        if (mLyricViewContainer != null) {
+            animateShow(mLyricViewContainer, animate);
+        }
+    }
+
+    public void hideLyric(boolean animate) {
+        if (mLyricViewContainer != null) {
+            animateHide(mLyricViewContainer, animate);
         }
     }
 
@@ -554,6 +581,21 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
     public void onDozingChanged(boolean isDozing) {
         disable(getContext().getDisplayId(), mDisabled1, mDisabled2, false /* animate */);
     }
+
+    private void initLyricView() {
+        mLyricViewContainer = mStatusBar.findViewById(R.id.lyric_container);
+        View lyricStub = mStatusBar.findViewById(R.id.lyric_stub);
+        if (mLyricViewFromStub == null && lyricStub != null) {
+            mLyricViewFromStub = ((ViewStub) lyricStub).inflate();
+        }
+        TickerView tickerView = (TickerView) mStatusBar.findViewById(R.id.lyricText);
+        ImageSwitcher tickerIcon = (ImageSwitcher) mStatusBar.findViewById(R.id.lyricIcon);
+        mStatusBarOptionalLazy.get().ifPresent(
+		statusBar -> statusBar.createLyricTicker(
+               getContext(), mStatusBar, tickerView, tickerIcon, mLyricViewFromStub));
+    }
+
+
 
     @Override
     public void onSystemChromeAnimationStart() {

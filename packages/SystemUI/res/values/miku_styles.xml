@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
  * Copyright (c) 2006, The Android Open Source Project
- * Copyright (c) 2021-2022, Miku UI
+ * Copyright (c) 2019-2021, The exTHmUI Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,10 @@
 */
 -->
 <resources>
-
-    <!-- Network traffic monitor -->
-    <dimen name="net_traffic_multi_text_size">8dp</dimen>
-    <dimen name="net_traffic_txt_img_padding">4dp</dimen>
-
     <!-- Status bar notification ticker -->
-    <dimen name="ticker_start_padding">6dp</dimen>
-    <dimen name="ticker_icon_end_margin">4dp</dimen>
-    <dimen name="ticker_top_padding">2dp</dimen>
-    <dimen name="ticker_text_end_padding">10dp</dimen>
-</resources>
+    <style name="TextAppearance.StatusBar.PhoneTicker" parent="@*android:style/TextAppearance.StatusBar">
+        <!-- Note: must be dp to fit in status bar -->
+        <item name="android:textSize">14.0sp</item>
+        <item name="android:fontFamily">@*android:string/config_headlineFontFamilyMedium</item>
+    </style>
+ </resources>
