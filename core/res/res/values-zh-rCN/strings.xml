@@ -226,19 +226,19 @@
     <string name="reboot_to_update_title" msgid="2125818841916373708">"Android 系统更新"</string>
     <string name="reboot_to_update_prepare" msgid="6978842143587422365">"正在准备更新…"</string>
     <string name="reboot_to_update_package" msgid="4644104795527534811">"正在处理更新软件包…"</string>
-    <string name="reboot_to_update_reboot" msgid="4474726009984452312">"正在重新启动…"</string>
-    <string name="reboot_to_reset_title" msgid="2226229680017882787">"恢复出厂设置"</string>
-    <string name="reboot_to_reset_message" msgid="3347690497972074356">"正在重新启动…"</string>
+    <string name="reboot_to_update_reboot" msgid="4474726009984452312">"正在重启Miku UI…"</string>
+    <string name="reboot_to_reset_title" msgid="2226229680017882787">"清空Miku UI的数据"</string>
+    <string name="reboot_to_reset_message" msgid="3347690497972074356">"正在重启Miku UI…"</string>
     <string name="shutdown_progress" msgid="5017145516412657345">"正在关机..."</string>
     <string name="shutdown_confirm" product="tablet" msgid="2872769463279602432">"您的平板电脑会关闭。"</string>
     <string name="shutdown_confirm" product="tv" msgid="7975942887313518330">"您的 Android TV 设备将关闭。"</string>
     <string name="shutdown_confirm" product="watch" msgid="2977299851200240146">"您的手表即将关机。"</string>
     <string name="shutdown_confirm" product="default" msgid="136816458966692315">"您的手机将会关机。"</string>
     <string name="shutdown_confirm_question" msgid="796151167261608447">"您要关机吗？"</string>
-    <string name="reboot_safemode_title" msgid="5853949122655346734">"重新启动并进入安全模式"</string>
+    <string name="reboot_safemode_title" msgid="5853949122655346734">"重启Miku UI并进入安全模式"</string>
     <string name="reboot_safemode_confirm" msgid="1658357874737219624">"您要重新启动并进入安全模式吗？这样会停用您已安装的所有第三方应用。再次重新启动将恢复这些应用。"</string>
     <string name="recent_tasks_title" msgid="8183172372995396653">"近期任务"</string>
-    <string name="no_recent_tasks" msgid="9063946524312275906">"最近没有运行任何应用"</string>
+    <string name="no_recent_tasks" msgid="9063946524312275906">"这里什么都没有啦QwQ"</string>
     <string name="global_actions" product="tablet" msgid="4412132498517933867">"平板电脑选项"</string>
     <string name="global_actions" product="tv" msgid="3871763739487450369">"Android TV 选项"</string>
     <string name="global_actions" product="default" msgid="6410072189971495460">"手机选项"</string>
