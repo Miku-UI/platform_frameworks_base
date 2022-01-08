@@ -931,7 +931,7 @@
     <string name="media_projection_action_text">Start now</string>
 
     <!-- Text which is shown in the notification shade when there are no notifications. [CHAR LIMIT=30] -->
-    <string name="empty_shade_text">No notifications</string>
+    <string name="empty_shade_text">Dont U have any friend</string>
 
     <!-- Disclosure at the bottom of Quick Settings that indicates that parental controls are enabled. [CHAR LIMIT=100] -->
     <string name="quick_settings_disclosure_parental_controls">This device is managed by your parent</string>
