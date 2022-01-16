@@ -77,7 +77,7 @@ import java.util.Set;
 
 import javax.crypto.SecretKey;
 
-import com.android.internal.util.custom.PixelPropsUtils;
+import com.android.internal.util.miku.PropsUtils;
 
 /**
  * A java.security.KeyStore interface for the Android KeyStore. An instance of
@@ -166,7 +166,7 @@ public class AndroidKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Certificate[] engineGetCertificateChain(String alias) {
-        PixelPropsUtils.onEngineGetCertificateChain();
+        PropsUtils.onEngineGetCertificateChain();
 
         KeyEntryResponse response = getKeyMetadata(alias);
 

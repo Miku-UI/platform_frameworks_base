@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2020 The Pixel Experience Project
  *
+ * Copyright (C) 2021-2022 Miku UI
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.internal.util.custom;
+package com.android.internal.util.miku;
 
 import android.os.Build;
 import android.util.Log;
@@ -24,19 +26,28 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PixelPropsUtils {
+public class PropsUtils {
 
-    private static final String TAG = PixelPropsUtils.class.getSimpleName();
+    private static final String TAG = PropsUtils.class.getSimpleName();
     private static final boolean DEBUG = false;
 
     private static volatile boolean sIsGms = false;
     public static final String PACKAGE_GMS = "com.google.android.gms";
 
     private static final Map<String, Object> propsToChange;
+    private static final Map<String, Object> propsToChangeMeizu;
     private static final Map<String, ArrayList<String>> propsToKeep;
     private static final String[] extraPackagesToChange = {
         "com.android.vending",
         "com.breel.wallpapers20"
+    };
+    private static final String[] meizuPropToChange = {
+            "com.netease.cloudmusic",
+            "com.tencent.qqmusic",
+	    "com.kugou.android",
+	    "cmccwm.mobilemusic",
+	    "cn.kuwo.player",
+	    "com.meizu.media.music"
     };
 
     static {
@@ -48,7 +59,14 @@ public class PixelPropsUtils {
         propsToChange.put("DEVICE", "raven");
         propsToChange.put("PRODUCT", "raven");
         propsToChange.put("MODEL", "Pixel 6 Pro");
-        propsToChange.put("FINGERPRINT", "google/raven/raven:12/SD1A.210817.015.A4/7697517:userdebug/dev-keys");
+        propsToChange.put("FINGERPRINT", "google/redfin/redfin:12/SP2A.220305.012/8177914:user/release-keys");
+	propsToChangeMeizu = new HashMap<>();
+	propsToChangeMeizu.put("BRAND", "meizu");
+	propsToChangeMeizu.put("MANUFACTURER", "meizu");
+	propsToChangeMeizu.put("DEVICE", "meizu18");
+	propsToChangeMeizu.put("PRODUCT", "meizu_18_CN");
+	propsToChangeMeizu.put("MODEL", "MEIZU 18");
+	propsToChangeMeizu.put("FINGERPRINT", "meizu/meizu_18_CN/meizu18:11/RKQ1.201105.002/1607588916:user/release-keys");
     }
 
     public static void setProps(String packageName) {
@@ -72,6 +90,16 @@ public class PixelPropsUtils {
                 setPropValue(key, value);
             }
         }
+	// Set Props for StatusBar Lyric
+	if(Arrays.asList(meizuPropToChange).contains(packageName)){
+	    if (DEBUG) Log.d(TAG, "Defining props for: " + packageName);
+	    for (Map.Entry<String, Object> prop : propsToChangeMeizu.entrySet()) {
+		String key = prop.getKey();
+		Object value = prop.getValue();
+		if (DEBUG) Log.d(TAG, "Defining " + key + " prop for: " + packageName);
+		setPropValue(key, value);
+	    }
+	}
         // Set proper indexing fingerprint
         if (packageName.equals("com.google.android.settings.intelligence")){
             setPropValue("FINGERPRINT", Build.DATE);
