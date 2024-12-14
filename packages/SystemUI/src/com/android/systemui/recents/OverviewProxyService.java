@@ -58,6 +58,7 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.IRemoteCallback;
 import android.os.Looper;
 import android.os.PatternMatcher;
 import android.os.Process;
@@ -146,7 +147,6 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
     public static final String TAG_OPS = "OverviewProxyService";
     private static final long BACKOFF_MILLIS = 1000;
     private static final long DEFERRED_CALLBACK_MILLIS = 5000;
-
     // Max backoff caps at 5 mins
     private static final long MAX_BACKOFF_MILLIS = 10 * 60 * 1000;
 
@@ -183,6 +183,10 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
     private int mConnectionBackoffAttempts;
     private boolean mBound;
     private boolean mIsEnabled;
+    // This is set to false when the overview service is requested to be bound until it is notified
+    // that the previous service has been cleaned up in IOverviewProxy#onUnbind(). It is also set to
+    // true after a 1000ms timeout by mDeferredBindAfterTimedOutCleanup.
+    private boolean mIsPrevServiceCleanedUp = true;
 
     private boolean mIsSystemOrVisibleBgUser;
     private int mCurrentBoundedUserId = -1;
@@ -516,6 +520,12 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
         Log.w(TAG_OPS, "Binder supposed established connection but actual connection to service "
             + "timed out, trying again");
         retryConnectionWithBackoff();
+    };
+
+    private final Runnable mDeferredBindAfterTimedOutCleanup = () -> {
+        Log.w(TAG_OPS, "Timed out waiting for previous service to clean up, binding to new one");
+        mIsPrevServiceCleanedUp = true;
+        maybeBindService();
     };
 
     private final BroadcastReceiver mUserEventReceiver = new BroadcastReceiver() {
@@ -888,6 +898,7 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
                 mShadeViewControllerLazy.get().cancelInputFocusTransfer();
             });
         }
+        mIsPrevServiceCleanedUp = true;
         startConnectionToCurrentUser();
     }
 
@@ -918,6 +929,19 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
         }
         mHandler.removeCallbacks(mConnectionRunnable);
 
+        maybeBindService();
+    }
+
+    private void maybeBindService() {
+        if (!mIsPrevServiceCleanedUp) {
+            Log.w(TAG_OPS, "Skipping connection to TouchInteractionService until previous"
+                    + " instance is cleaned up.");
+            if (!mHandler.hasCallbacks(mDeferredConnectionCallback)) {
+                mHandler.postDelayed(mDeferredBindAfterTimedOutCleanup, BACKOFF_MILLIS);
+            }
+            return;
+        }
+
         // Avoid creating TouchInteractionService because the System user in HSUM mode does not
         // interact with UI elements
         UserHandle currentUser = UserHandle.of(mUserTracker.getUserId());
@@ -936,6 +960,7 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
             Log.e(TAG_OPS, "Unable to bind because of security error", e);
         }
         if (mBound) {
+            mIsPrevServiceCleanedUp = false;
             // Ensure that connection has been established even if it thinks it is bound
             mHandler.postDelayed(mDeferredConnectionCallback, DEFERRED_CALLBACK_MILLIS);
         } else {
@@ -989,6 +1014,24 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
             // Always unbind the service (ie. if called through onNullBinding or onBindingDied)
             mContext.unbindService(mOverviewServiceConnection);
             mBound = false;
+            if (mOverviewProxy != null) {
+                try {
+                    mOverviewProxy.onUnbind(new IRemoteCallback.Stub() {
+                        @Override
+                        public void sendResult(Bundle data) throws RemoteException {
+                            // Received Launcher reply, try to bind anew.
+                            mIsPrevServiceCleanedUp = true;
+                            if (mHandler.hasCallbacks(mDeferredBindAfterTimedOutCleanup)) {
+                                mHandler.removeCallbacks(mDeferredBindAfterTimedOutCleanup);
+                                maybeBindService();
+                            }
+                        }
+                    });
+                } catch (RemoteException e) {
+                    Log.w(TAG_OPS, "disconnectFromLauncherService failed to notify Launcher");
+                    mIsPrevServiceCleanedUp = true;
+                }
+            }
         }
 
         if (mOverviewProxy != null) {
@@ -1224,6 +1267,7 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
         pw.print("  mInputFocusTransferStartMillis="); pw.println(mInputFocusTransferStartMillis);
         pw.print("  mActiveNavBarRegion="); pw.println(mActiveNavBarRegion);
         pw.print("  mNavBarMode="); pw.println(mNavBarMode);
+        pw.print("  mIsPrevServiceCleanedUp="); pw.println(mIsPrevServiceCleanedUp);
         mSysUiState.dump(pw, args);
     }
 
