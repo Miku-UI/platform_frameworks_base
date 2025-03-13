@@ -113,6 +113,9 @@ interface ISystemUiProxy {
     /** Notifies when taskbar is enabled or disabled */
     oneway void setTaskbarEnabled(boolean enabled) = 500;
 
+    /** Injects button long press. */
+    oneway void injectLongPress(int keyCode) = 46;
+
     /** Notifies when taskbar status updated */
     oneway void notifyTaskbarStatus(boolean visible, boolean stashed) = 47;
 
