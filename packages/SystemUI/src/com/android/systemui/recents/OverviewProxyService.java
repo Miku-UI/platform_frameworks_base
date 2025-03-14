@@ -315,6 +315,16 @@ public class OverviewProxyService implements CallbackController<OverviewProxyLis
         }
 
         @Override
+        public void injectDoublePress(int keyCode) throws RemoteException {
+            verifyCallerAndClearCallingIdentityPostMain("doublePressInjected", () -> {
+                sendEvent(KeyEvent.ACTION_DOWN, keyCode);
+                sendEvent(KeyEvent.ACTION_UP, keyCode);
+                sendEvent(KeyEvent.ACTION_DOWN, keyCode);
+                sendEvent(KeyEvent.ACTION_UP, keyCode);
+            });
+        }
+
+        @Override
         public void onImeSwitcherPressed() {
             // TODO(b/204901476) We're intentionally using the default display for now since
             // Launcher/Taskbar isn't display aware.
