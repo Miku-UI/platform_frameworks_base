@@ -18,6 +18,7 @@ package com.android.systemui.deviceentry.domain.interactor
 
 import android.content.Context
 import android.content.Intent
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
@@ -49,7 +50,6 @@ import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 /** Business logic for handling authentication events when an app is occluding the lockscreen. */
 @ExperimentalCoroutinesApi

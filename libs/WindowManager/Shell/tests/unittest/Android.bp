@@ -62,6 +62,7 @@ android_test {
         "com.android.window.flags.window-aconfig-java",
         "platform-test-annotations",
         "flag-junit",
+        "platform-parametric-runner-lib",
     ],
 
     libs: [

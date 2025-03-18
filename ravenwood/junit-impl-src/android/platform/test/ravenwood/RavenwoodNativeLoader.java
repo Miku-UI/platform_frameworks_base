@@ -40,9 +40,10 @@ public final class RavenwoodNativeLoader {
      * See frameworks/base/core/jni/platform/host/HostRuntime.cpp
      */
     private static final Class<?>[] sLibandroidClasses = {
-            android.util.Log.class,
+//            android.util.Log.class, // Not using native log: b/377377826
             android.os.Parcel.class,
             android.os.Binder.class,
+            android.os.SystemProperties.class,
             android.content.res.ApkAssets.class,
             android.content.res.AssetManager.class,
             android.content.res.StringBlock.class,

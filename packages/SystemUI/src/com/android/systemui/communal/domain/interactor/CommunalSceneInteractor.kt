@@ -16,7 +16,7 @@
 
 package com.android.systemui.communal.domain.interactor
 
-import com.android.app.tracing.coroutines.launch
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
@@ -98,16 +98,17 @@ constructor(
         transitionKey: TransitionKey? = null,
         keyguardState: KeyguardState? = null,
     ) {
-        if (SceneContainerFlag.isEnabled) {
-            return sceneInteractor.changeScene(
-                toScene = newScene.toSceneContainerSceneKey(),
-                loggingReason = loggingReason,
-                transitionKey = transitionKey,
-                sceneState = keyguardState,
-            )
-        }
-
         applicationScope.launch("$TAG#changeScene") {
+            if (SceneContainerFlag.isEnabled) {
+                sceneInteractor.changeScene(
+                    toScene = newScene.toSceneContainerSceneKey(),
+                    loggingReason = loggingReason,
+                    transitionKey = transitionKey,
+                    sceneState = keyguardState,
+                )
+                return@launch
+            }
+
             if (currentScene.value == newScene) return@launch
             logger.logSceneChangeRequested(
                 from = currentScene.value,
@@ -125,16 +126,17 @@ constructor(
         newScene: SceneKey,
         loggingReason: String,
         delayMillis: Long = 0,
-        keyguardState: KeyguardState? = null
+        keyguardState: KeyguardState? = null,
     ) {
-        if (SceneContainerFlag.isEnabled) {
-            return sceneInteractor.snapToScene(
-                toScene = newScene.toSceneContainerSceneKey(),
-                loggingReason = loggingReason,
-            )
-        }
-
         applicationScope.launch("$TAG#snapToScene") {
+            if (SceneContainerFlag.isEnabled) {
+                sceneInteractor.snapToScene(
+                    toScene = newScene.toSceneContainerSceneKey(),
+                    loggingReason = loggingReason,
+                )
+                return@launch
+            }
+
             delay(delayMillis)
             if (currentScene.value == newScene) return@launch
             logger.logSceneChangeRequested(
@@ -161,10 +163,7 @@ constructor(
         } else {
             repository.currentScene
                 .pairwiseBy(initialValue = repository.currentScene.value) { from, to ->
-                    logger.logSceneChangeCommitted(
-                        from = from,
-                        to = to,
-                    )
+                    logger.logSceneChangeCommitted(from = from, to = to)
                     to
                 }
                 .stateIn(

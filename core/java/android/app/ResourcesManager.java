@@ -467,16 +467,19 @@ public class ResourcesManager {
     }
 
     /**
-     * Protected so that tests can override and returns something a fixed value.
+     * public so that tests can access and override
      */
     @VisibleForTesting
-    protected @NonNull DisplayMetrics getDisplayMetrics(int displayId, DisplayAdjustments da) {
+    public @NonNull DisplayMetrics getDisplayMetrics(int displayId, DisplayAdjustments da) {
         final DisplayManagerGlobal displayManagerGlobal = DisplayManagerGlobal.getInstance();
         final DisplayMetrics dm = new DisplayMetrics();
         final DisplayInfo displayInfo = displayManagerGlobal != null
                 ? displayManagerGlobal.getDisplayInfo(displayId) : null;
         if (displayInfo != null) {
-            displayInfo.getAppMetrics(dm, da);
+            final Configuration dajConfig = da.getConfiguration();
+            displayInfo.getAppMetrics(dm, da.getCompatibilityInfo(),
+                    (mResDisplayId == displayId && Configuration.EMPTY.equals(dajConfig))
+                            ? mResConfiguration : dajConfig);
         } else {
             dm.setToDefaults();
         }
@@ -1187,7 +1190,6 @@ public class ResourcesManager {
         synchronized (mLock) {
             if (DEBUG) {
                 Throwable here = new Throwable();
-                here.fillInStackTrace();
                 Slog.w(TAG, "!! Create resources for key=" + key, here);
             }
 
@@ -1208,7 +1210,6 @@ public class ResourcesManager {
         synchronized (mLock) {
             if (DEBUG) {
                 Throwable here = new Throwable();
-                here.fillInStackTrace();
                 Slog.w(TAG, "!! Get resources for activity=" + activityToken + " key=" + key, here);
             }
 
@@ -1352,7 +1353,6 @@ public class ResourcesManager {
 
                 if (DEBUG) {
                     Throwable here = new Throwable();
-                    here.fillInStackTrace();
                     Slog.d(TAG, "updating resources override for activity=" + activityToken
                             + " from oldConfig="
                             + Configuration.resourceQualifierString(oldConfig)
@@ -1517,10 +1517,8 @@ public class ResourcesManager {
                 int changes = mResConfiguration.updateFrom(config);
                 if (compat != null && (mResCompatibilityInfo == null
                         || !mResCompatibilityInfo.equals(compat))) {
+                    changes |= compat.getCompatibilityChangesForConfig(mResCompatibilityInfo);
                     mResCompatibilityInfo = compat;
-                    changes |= ActivityInfo.CONFIG_SCREEN_LAYOUT
-                            | ActivityInfo.CONFIG_SCREEN_SIZE
-                            | ActivityInfo.CONFIG_SMALLEST_SCREEN_SIZE;
                 }
 
                 // If a application info update was scheduled to occur in this process but has not
@@ -2031,6 +2029,7 @@ public class ResourcesManager {
     public void registerAllResourcesReference(@NonNull Resources resources) {
         if (android.content.res.Flags.registerResourcePaths()) {
             synchronized (mLock) {
+                cleanupReferences(mAllResourceReferences, mAllResourceReferencesQueue);
                 mAllResourceReferences.add(
                         new WeakReference<>(resources, mAllResourceReferencesQueue));
             }

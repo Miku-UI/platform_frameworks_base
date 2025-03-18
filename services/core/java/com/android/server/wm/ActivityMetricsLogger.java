@@ -250,7 +250,7 @@ class ActivityMetricsLogger {
                     status = ":completed-same-process:";
                 } else {
                     if (endInfo.mTransitionType == TYPE_TRANSITION_HOT_LAUNCH) {
-                        status = ":completed-hot:";
+                        status = !endInfo.mRelaunched ? ":completed-hot:" : ":completed-relaunch:";
                     } else if (endInfo.mTransitionType == TYPE_TRANSITION_WARM_LAUNCH) {
                         status = ":completed-warm:";
                     } else {

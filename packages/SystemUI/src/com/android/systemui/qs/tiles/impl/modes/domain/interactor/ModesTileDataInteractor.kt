@@ -18,7 +18,7 @@ package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
 import android.content.Context
 import android.os.UserHandle
-import com.android.app.tracing.coroutines.flow.map
+import com.android.app.tracing.coroutines.flow.flowName
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.shared.model.asIcon
 import com.android.systemui.dagger.qualifiers.Background
@@ -28,6 +28,7 @@ import com.android.systemui.qs.tiles.ModesTile
 import com.android.systemui.qs.tiles.base.interactor.DataUpdateTrigger
 import com.android.systemui.qs.tiles.base.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.impl.modes.domain.model.ModesTileModel
+import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
 import com.android.systemui.statusbar.policy.domain.model.ActiveZenModes
 import com.android.systemui.statusbar.policy.domain.model.ZenModeInfo
@@ -37,11 +38,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 
 class ModesTileDataInteractor
 @Inject
 constructor(
-    val context: Context,
+    @ShadeDisplayAware val context: Context,
     val zenModeInteractor: ZenModeInteractor,
     @Background val bgDispatcher: CoroutineDispatcher,
 ) : QSTileDataInteractor<ModesTileModel> {
@@ -59,6 +61,7 @@ constructor(
     fun tileData() =
         zenModeInteractor.activeModes
             .map { activeModes -> buildTileData(activeModes) }
+            .flowName("tileData")
             .flowOn(bgDispatcher)
             .distinctUntilChanged()
 
