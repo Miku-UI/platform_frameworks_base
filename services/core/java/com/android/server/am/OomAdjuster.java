@@ -551,7 +551,7 @@ public class OomAdjuster {
             final int group = msg.what;
             final ProcessRecord app = (ProcessRecord) msg.obj;
             if (mEnableProcessGroupCgroupFollow) {
-                setCgroupProcsProcessGroup(app.info.uid, pid, group, mProcessGroupCgroupFollowDex2oatOnly);
+                setCgroupProcsProcessGroup(app.info.uid, app.getPid(), group, mProcessGroupCgroupFollowDex2oatOnly);
             } else {
                 setProcessGroup(app.getPid(), group, app.processName);
             }
