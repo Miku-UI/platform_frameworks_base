@@ -76,7 +76,6 @@ import javax.inject.Inject;
 public class NavigationBarControllerImpl implements
         ConfigurationController.ConfigurationListener,
         NavigationModeController.ModeChangedListener,
-        OverviewProxyService.OverviewProxyListener,
         Dumpable, NavigationBarController {
 
     private static final String TAG = NavigationBarControllerImpl.class.getSimpleName();
@@ -90,7 +89,6 @@ public class NavigationBarControllerImpl implements
     private final TaskbarDelegate mTaskbarDelegate;
     private final NavBarHelper mNavBarHelper;
     private int mNavMode;
-    private boolean mTaskbarShowing;
     /**
      * Indicates whether the active display is a large screen, e.g. tablets, foldable devices in
      * the unfolded state.
@@ -116,24 +114,24 @@ public class NavigationBarControllerImpl implements
 
     @Inject
     public NavigationBarControllerImpl(Context context,
-            OverviewProxyService overviewProxyService,
-            NavigationModeController navigationModeController,
-            SysUiState sysUiFlagsContainer,
-            CommandQueue commandQueue,
-            @Main Executor mainExecutor,
-            ConfigurationController configurationController,
-            NavBarHelper navBarHelper,
-            TaskbarDelegate taskbarDelegate,
-            NavigationBarComponent.Factory navigationBarComponentFactory,
-            DumpManager dumpManager,
-            AutoHideControllerStore autoHideControllerStore,
-            LightBarController lightBarController,
-            TaskStackChangeListeners taskStackChangeListeners,
-            Optional<Pip> pipOptional,
-            Optional<BackAnimation> backAnimation,
-            SecureSettings secureSettings,
-            DisplayTracker displayTracker,
-            DeviceStateManager deviceStateManager) {
+                                       OverviewProxyService overviewProxyService,
+                                       NavigationModeController navigationModeController,
+                                       SysUiState sysUiFlagsContainer,
+                                       CommandQueue commandQueue,
+                                       @Main Executor mainExecutor,
+                                       ConfigurationController configurationController,
+                                       NavBarHelper navBarHelper,
+                                       TaskbarDelegate taskbarDelegate,
+                                       NavigationBarComponent.Factory navigationBarComponentFactory,
+                                       DumpManager dumpManager,
+                                       AutoHideControllerStore autoHideControllerStore,
+                                       LightBarController lightBarController,
+                                       TaskStackChangeListeners taskStackChangeListeners,
+                                       Optional<Pip> pipOptional,
+                                       Optional<BackAnimation> backAnimation,
+                                       SecureSettings secureSettings,
+                                       DisplayTracker displayTracker,
+                                       DeviceStateManager deviceStateManager) {
         mContext = context;
         mExecutor = mainExecutor;
         mNavigationBarComponentFactory = navigationBarComponentFactory;
@@ -167,9 +165,10 @@ public class NavigationBarControllerImpl implements
 
     @Override
     public void onConfigChanged(Configuration newConfig) {
-        boolean oldShouldShowTaskbar = shouldShowTaskbar();
+        boolean isOldConfigLargeScreen = mIsLargeScreen;
+        mIsLargeScreen = isLargeScreen(mContext);
         boolean willApplyConfig = mConfigChanges.applyNewConfig(mContext.getResources());
-        boolean largeScreenChanged = shouldShowTaskbar() != oldShouldShowTaskbar;
+        boolean largeScreenChanged = mIsLargeScreen != isOldConfigLargeScreen;
         // TODO(b/332635834): Disable this logging once b/332635834 is fixed.
         Log.i(DEBUG_MISSING_GESTURE_TAG, "NavbarController: newConfig=" + newConfig
                 + " mTaskbarDelegate initialized=" + mTaskbarDelegate.isInitialized()
@@ -260,7 +259,7 @@ public class NavigationBarControllerImpl implements
         } else {
             mTaskbarDelegate.destroy();
         }
-        return shouldShowTaskbar();
+        return taskbarEnabled;
     }
 
     @VisibleForTesting
@@ -281,6 +280,7 @@ public class NavigationBarControllerImpl implements
         @Override
         public void onDisplayReady(int displayId) {
             Display display = mDisplayManager.getDisplay(displayId);
+            mIsLargeScreen = isLargeScreen(mContext);
             createNavigationBar(display, null /* savedState */, null /* result */);
         }
 
@@ -326,18 +326,9 @@ public class NavigationBarControllerImpl implements
         createNavigationBar(mDisplayManager.getDisplay(displayId), savedState, null /* result */);
     }
 
-    private boolean shouldShowTaskbar() {
-        return mTaskbarShowing;
-    }
-
-    @VisibleForTesting
-    protected void setTaskbarShowing(boolean b) {
-        mTaskbarShowing = b;
-    }
-
     @Override
     public void createNavigationBars(final boolean includeDefaultDisplay,
-            RegisterStatusBarResult result) {
+                                     RegisterStatusBarResult result) {
         // Don't need to create nav bar on the default display if we initialize TaskBar.
         final boolean shouldCreateDefaultNavbar = includeDefaultDisplay
                 && !initializeTaskbarIfNecessary();
@@ -358,7 +349,7 @@ public class NavigationBarControllerImpl implements
      */
     @VisibleForTesting
     void createNavigationBar(Display display, Bundle savedState,
-            RegisterStatusBarResult result) {
+                             RegisterStatusBarResult result) {
         if (display == null) {
             return;
         }
@@ -492,7 +483,7 @@ public class NavigationBarControllerImpl implements
     @NeverCompile
     @Override
     public void dump(@NonNull PrintWriter pw, @NonNull String[] args) {
-        pw.println("mTaskbarShowing=" + mTaskbarShowing);
+        pw.println("mIsLargeScreen=" + mIsLargeScreen);
         pw.println("mNavMode=" + mNavMode);
         for (int i = 0; i < mNavigationBars.size(); i++) {
             if (i > 0) {
