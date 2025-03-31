@@ -138,7 +138,7 @@ public abstract class LyricViewController implements
                 Drawable icon = iconId == -1 ? notification.getSmallIcon().loadDrawable(mContext) :
                         statusBarIconView.getIcon(mContext, sbn.getPackageContext(mContext),
                                 new StatusBarIcon(sbn.getPackageName(), sbn.getUser(),
-                                    iconId, notification.iconLevel, 0, null, StatusBarIcon.Type.MaybeMonochromeAppIcon));
+                                    iconId, notification.iconLevel, 0, null, StatusBarIcon.Type.NotifSmallIcon));
                 mIconSwitcher.setImageDrawable(icon);
                 updateIconTint();
             }
