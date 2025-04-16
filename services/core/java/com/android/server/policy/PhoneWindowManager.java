@@ -3607,7 +3607,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 }
                 break;
             case KeyEvent.KEYCODE_I:
-                if (firstDown && event.isMetaPressed()) {
+                if (firstDown && event.isMetaPressed() && isUserSetupComplete() && !keyguardOn) {
                     showSystemSettings();
                     notifyKeyGestureCompleted(event,
                             KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SYSTEM_SETTINGS);
@@ -4180,6 +4180,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         int displayId = event.getDisplayId();
         int modifierState = event.getModifierState();
         boolean keyguardOn = keyguardOn();
+        boolean canLaunchApp = isUserSetupComplete() && !keyguardOn;
         switch (gestureType) {
             case KeyGestureEvent.KEY_GESTURE_TYPE_RECENT_APPS:
                 if (complete) {
@@ -4197,7 +4198,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 return true;
             case KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_ASSISTANT:
             case KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_VOICE_ASSISTANT:
-                if (complete) {
+                if (complete && canLaunchApp) {
                     launchAssistAction(Intent.EXTRA_ASSIST_INPUT_HINT_KEYBOARD,
                             deviceId, SystemClock.uptimeMillis(),
                             AssistUtils.INVOCATION_TYPE_UNKNOWN);
@@ -4210,7 +4211,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 }
                 return true;
             case KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SYSTEM_SETTINGS:
-                if (complete) {
+                if (complete && canLaunchApp) {
                     showSystemSettings();
                 }
                 return true;
@@ -4313,7 +4314,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 }
                 return true;
             case KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SEARCH:
-                if (complete) {
+                if (complete && canLaunchApp) {
                     launchTargetSearchActivity();
                 }
                 return true;
@@ -4394,8 +4395,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 break;
             case KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_APPLICATION:
                 AppLaunchData data = event.getAppLaunchData();
-                if (complete && isUserSetupComplete() && !keyguardOn
-                        && data != null && mModifierShortcutManager.launchApplication(data)) {
+                if (complete && canLaunchApp && data != null
+                        && mModifierShortcutManager.launchApplication(data)) {
                     dismissKeyboardShortcutsMenu();
                 }
                 return true;
