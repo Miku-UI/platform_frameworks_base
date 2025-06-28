@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
 #define LOG_TAG "ScreenCapture"
 // #define LOG_NDEBUG 0
@@ -108,21 +109,29 @@ public:
             return binder::Status::ok();
         }
         captureResults.fenceResult.value()->waitForever(LOG_TAG);
-        jobject jhardwareBuffer = android_hardware_HardwareBuffer_createFromAHardwareBuffer(
-                env, captureResults.buffer->toAHardwareBuffer());
-        jobject screenshotHardwareBuffer =
-                env->CallStaticObjectMethod(gScreenshotHardwareBufferClassInfo.clazz,
+        auto jhardwareBuffer = ScopedLocalRef<jobject>(
+                env, android_hardware_HardwareBuffer_createFromAHardwareBuffer(
+                        env, captureResults.buffer->toAHardwareBuffer()));
+        auto jGainmap = ScopedLocalRef<jobject>(env);
+        if (captureResults.optionalGainMap) {
+            jGainmap = ScopedLocalRef<jobject>(
+                    env, android_hardware_HardwareBuffer_createFromAHardwareBuffer(
+                            env, captureResults.optionalGainMap->toAHardwareBuffer()));
+        }
+        auto screenshotHardwareBuffer =
+                ScopedLocalRef<jobject>(env, env->CallStaticObjectMethod(
+                                            gScreenshotHardwareBufferClassInfo.clazz,
                                             gScreenshotHardwareBufferClassInfo.builder,
-                                            jhardwareBuffer,
+                                            jhardwareBuffer.get(),
                                             static_cast<jint>(captureResults.capturedDataspace),
                                             captureResults.capturedSecureLayers,
-                                            captureResults.capturedHdrLayers);
+                                            captureResults.capturedHdrLayers, jGainmap.get(),
+                                            captureResults.hdrSdrRatio));
         checkAndClearException(env, "builder");
-        env->CallVoidMethod(consumer.get(), gConsumerClassInfo.accept, screenshotHardwareBuffer,
+        env->CallVoidMethod(consumer.get(), gConsumerClassInfo.accept,
+                            screenshotHardwareBuffer.get(),
                             fenceStatus(captureResults.fenceResult));
         checkAndClearException(env, "accept");
-        env->DeleteLocalRef(jhardwareBuffer);
-        env->DeleteLocalRef(screenshotHardwareBuffer);
         return binder::Status::ok();
     }
 
@@ -340,7 +349,8 @@ int register_android_window_ScreenCapture(JNIEnv* env) {
             MakeGlobalRefOrDie(env, screenshotGraphicsBufferClazz);
     gScreenshotHardwareBufferClassInfo.builder =
             GetStaticMethodIDOrDie(env, screenshotGraphicsBufferClazz, "createFromNative",
-                                   "(Landroid/hardware/HardwareBuffer;IZZ)Landroid/window/"
+                                   "(Landroid/hardware/HardwareBuffer;IZZLandroid/hardware/"
+                                   "HardwareBuffer;F)Landroid/window/"
                                    "ScreenCapture$ScreenshotHardwareBuffer;");
 
     return err;

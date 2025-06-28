@@ -32,7 +32,7 @@ re_command = re.compile(r''' ^\[.*?\]  \s*  (.*) ''', re.X)
 HEADER = r'''#!/bin/bash
 
 set -e # Stop on a failed command
-
+set -x # Print command line before executing
 cd "${ANDROID_BUILD_TOP:?}"
 
 '''
@@ -48,13 +48,14 @@ def main(args):
     with open(outfile, "w") as out:
         out.write(HEADER)
 
+        count = 0
         with gzip.open(log) as f:
             for line in f:
                 s = line.decode("utf-8")
 
                 if s.startswith("verbose"):
                     continue
-                if re.match('^\[.*bootstrap blueprint', s):
+                if re.match('^\\[.*bootstrap blueprint', s):
                     continue
 
                 s = s.rstrip()
@@ -63,16 +64,9 @@ def main(args):
                 if m:
                     command = m.groups()[0]
 
-                    out.write('#========\n')
-
-                    # Show the full command line before executing it.
-                    out.write('#echo ' + shlex.quote(command) + '\n')
-                    out.write('\n')
-
-                    # Execute the command.
-                    out.write('#' + command + '\n')
-
-                    out.write('\n')
+                    count += 1
+                    out.write(f'### Command {count} ========\n\n')
+                    out.write('#' + command + '\n\n')
 
                     continue
 

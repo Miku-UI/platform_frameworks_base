@@ -2,6 +2,8 @@
 
 --debug
 
+--delete-finals
+
 # Uncomment below lines to enable each feature.
 
 #--default-method-call-hook
@@ -17,6 +19,9 @@
 
 --keep-class-annotation
     android.hosttest.annotation.HostSideTestWholeClassKeep
+
+--partially-allowed-annotation
+    android.hosttest.annotation.HostSideTestPartiallyAllowlisted
 
 --throw-annotation
     android.hosttest.annotation.HostSideTestThrow

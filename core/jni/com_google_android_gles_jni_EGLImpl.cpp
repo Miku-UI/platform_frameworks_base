@@ -14,6 +14,7 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
+#undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
 #include <nativehelper/JNIHelp.h>
 #include <android_runtime/AndroidRuntime.h>
@@ -299,7 +300,7 @@ not_valid_surface:
     }
 
     sp<IGraphicBufferProducer> producer(SurfaceTexture_getProducer(_env, native_window));
-    window = new Surface(producer, true);
+    window = sp<Surface>::make(producer, true);
     if (window == NULL)
         goto not_valid_surface;
 

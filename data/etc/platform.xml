@@ -62,6 +62,12 @@
 
     <permission name="android.permission.READ_LOGS" >
         <group gid="log" />
+        <group gid="update_engine_log" />
+    </permission>
+
+    <permission name="android.permission.READ_UPDATE_ENGINE_LOGS"
+                featureFlag="com.android.update_engine.minor_changes_2025q4" >
+        <group gid="update_engine_log" />
     </permission>
 
     <permission name="android.permission.ACCESS_MTP" >
@@ -210,6 +216,7 @@
     <assign-permission name="android.permission.STATSCOMPANION" uid="statsd" />
     <assign-permission name="android.permission.UPDATE_APP_OPS_STATS" uid="statsd" />
 
+    <assign-permission name="android.permission.REGISTER_STATS_PULL_ATOM" uid="mmd" />
     <assign-permission name="android.permission.REGISTER_STATS_PULL_ATOM" uid="gpu_service" />
     <assign-permission name="android.permission.REGISTER_STATS_PULL_ATOM" uid="keystore" />
 

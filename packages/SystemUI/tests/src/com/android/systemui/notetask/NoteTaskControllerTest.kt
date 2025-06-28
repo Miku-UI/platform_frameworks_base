@@ -70,7 +70,6 @@ import com.android.wm.shell.bubbles.Bubbles
 import com.google.common.truth.Truth.assertThat
 import java.util.Optional
 import kotlin.test.assertNotNull
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -91,7 +90,6 @@ import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.whenever
 
 /** atest SystemUITests:NoteTaskControllerTest */
-@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 internal class NoteTaskControllerTest : SysuiTestCase() {
@@ -180,7 +178,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
             .apply { infoReference.set(expectedInfo) }
             .onBubbleExpandChanged(
                 isExpanding = true,
-                key = Bubble.getAppBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
+                key = Bubble.getNoteBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
             )
 
         verify(eventLogger).logNoteTaskOpened(expectedInfo)
@@ -195,7 +193,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
             .apply { infoReference.set(expectedInfo) }
             .onBubbleExpandChanged(
                 isExpanding = false,
-                key = Bubble.getAppBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
+                key = Bubble.getNoteBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
             )
 
         verify(eventLogger).logNoteTaskClosed(expectedInfo)
@@ -210,7 +208,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
             .apply { infoReference.set(expectedInfo) }
             .onBubbleExpandChanged(
                 isExpanding = true,
-                key = Bubble.getAppBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
+                key = Bubble.getNoteBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
             )
 
         verifyNoMoreInteractions(bubbles, keyguardManager, userManager, eventLogger)
@@ -224,14 +222,14 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
             .apply { infoReference.set(expectedInfo) }
             .onBubbleExpandChanged(
                 isExpanding = false,
-                key = Bubble.getAppBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
+                key = Bubble.getNoteBubbleKeyForApp(expectedInfo.packageName, expectedInfo.user),
             )
 
         verifyNoMoreInteractions(bubbles, keyguardManager, userManager, eventLogger)
     }
 
     @Test
-    fun onBubbleExpandChanged_notKeyAppBubble_shouldDoNothing() {
+    fun onBubbleExpandChanged_notKeyNoteBubble_shouldDoNothing() {
         createNoteTaskController().onBubbleExpandChanged(isExpanding = true, key = "any other key")
 
         verifyNoMoreInteractions(bubbles, keyguardManager, userManager, eventLogger)
@@ -242,7 +240,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
         createNoteTaskController(isEnabled = false)
             .onBubbleExpandChanged(
                 isExpanding = true,
-                key = Bubble.getAppBubbleKeyForApp(NOTE_TASK_INFO.packageName, NOTE_TASK_INFO.user),
+                key = Bubble.getNoteBubbleKeyForApp(NOTE_TASK_INFO.packageName, NOTE_TASK_INFO.user),
             )
 
         verifyNoMoreInteractions(bubbles, keyguardManager, userManager, eventLogger)
@@ -745,7 +743,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
         val intentCaptor = argumentCaptor<Intent>()
         val iconCaptor = argumentCaptor<Icon>()
         verify(bubbles)
-            .showOrHideAppBubble(capture(intentCaptor), eq(userHandle), capture(iconCaptor))
+            .showOrHideNoteBubble(capture(intentCaptor), eq(userHandle), capture(iconCaptor))
         assertThat(intentCaptor.value).run {
             hasAction(ACTION_CREATE_NOTE)
             hasPackage(NOTE_TASK_PACKAGE_NAME)

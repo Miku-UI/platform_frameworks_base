@@ -87,7 +87,6 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-/** Tests for TelephonySubscriptionTracker */
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class VcnGatewayConnectionTest extends VcnGatewayConnectionTestBase {

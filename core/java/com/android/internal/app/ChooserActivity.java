@@ -23,6 +23,7 @@ import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CANT
 import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CROSS_PROFILE_BLOCKED_TITLE;
 import static android.content.ContentProvider.getUriWithoutUserId;
 import static android.content.ContentProvider.getUserIdFromUri;
+import static android.service.chooser.Flags.notifySingleItemChangeOnIconLoad;
 import static android.stats.devicepolicy.DevicePolicyEnums.RESOLVER_EMPTY_STATE_NO_SHARING_TO_PERSONAL;
 import static android.stats.devicepolicy.DevicePolicyEnums.RESOLVER_EMPTY_STATE_NO_SHARING_TO_WORK;
 
@@ -163,9 +164,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -1875,9 +1878,7 @@ public class ChooserActivity extends ResolverActivity implements
                 Bundle b = new Bundle();
                 // Add userHandle based badge to the stackedAppDialogBox.
                 b.putParcelable(ChooserTargetActionsDialogFragment.USER_HANDLE_KEY,
-                        getResolveInfoUserHandle(
-                                targetInfo.getResolveInfo(),
-                                mChooserMultiProfilePagerAdapter.getCurrentUserHandle()));
+                        targetInfo.getResolveInfo().userHandle);
                 b.putObject(ChooserStackedAppDialogFragment.MULTI_DRI_KEY,
                         mti);
                 b.putInt(ChooserStackedAppDialogFragment.WHICH_KEY, which);
@@ -2457,10 +2458,7 @@ public class ChooserActivity extends ResolverActivity implements
             //  compares using resolveInfo.userHandle
             mComparator = Comparator.comparing(DisplayResolveInfo::getDisplayLabel, collator)
                     .thenComparingInt(displayResolveInfo ->
-                            getResolveInfoUserHandle(
-                                    displayResolveInfo.getResolveInfo(),
-                                    // TODO: User resolveInfo.userHandle, once its available.
-                                    UserHandle.SYSTEM).getIdentifier());
+                            displayResolveInfo.getResolveInfo().userHandle.getIdentifier());
         }
 
         @Override
@@ -3217,6 +3215,8 @@ public class ChooserActivity extends ResolverActivity implements
 
         private static final int NUM_EXPANSIONS_TO_HIDE_AZ_LABEL = 20;
 
+        private final Set<ViewHolderBase> mBoundViewHolders = new HashSet<>();
+
         ChooserGridAdapter(ChooserListAdapter wrappedAdapter) {
             super();
             mChooserListAdapter = wrappedAdapter;
@@ -3237,6 +3237,31 @@ public class ChooserActivity extends ResolverActivity implements
                     notifyDataSetChanged();
                 }
             });
+            if (notifySingleItemChangeOnIconLoad()) {
+                wrappedAdapter.setOnIconLoadedListener(this::onTargetIconLoaded);
+            }
+        }
+
+        private void onTargetIconLoaded(DisplayResolveInfo info) {
+            for (ViewHolderBase holder : mBoundViewHolders) {
+                switch (holder.getViewType()) {
+                    case VIEW_TYPE_NORMAL:
+                        TargetInfo itemInfo =
+                                mChooserListAdapter.getItem(
+                                        ((ItemViewHolder) holder).mListPosition);
+                        if (info == itemInfo) {
+                            notifyItemChanged(holder.getAdapterPosition());
+                        }
+                        break;
+                    case VIEW_TYPE_CALLER_AND_RANK:
+                        ItemGroupViewHolder groupHolder = (ItemGroupViewHolder) holder;
+                        if (suggestedAppsGroupContainsTarget(groupHolder, info)) {
+                            notifyItemChanged(holder.getAdapterPosition());
+                        }
+                        break;
+                }
+
+            }
         }
 
         public void setFooterHeight(int height) {
@@ -3387,6 +3412,9 @@ public class ChooserActivity extends ResolverActivity implements
 
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+            if (notifySingleItemChangeOnIconLoad()) {
+                mBoundViewHolders.add((ViewHolderBase) holder);
+            }
             int viewType = ((ViewHolderBase) holder).getViewType();
             switch (viewType) {
                 case VIEW_TYPE_DIRECT_SHARE:
@@ -3398,6 +3426,22 @@ public class ChooserActivity extends ResolverActivity implements
                     break;
                 default:
             }
+        }
+
+        @Override
+        public void onViewRecycled(RecyclerView.ViewHolder holder) {
+            if (notifySingleItemChangeOnIconLoad()) {
+                mBoundViewHolders.remove((ViewHolderBase) holder);
+            }
+            super.onViewRecycled(holder);
+        }
+
+        @Override
+        public boolean onFailedToRecycleView(RecyclerView.ViewHolder holder) {
+            if (notifySingleItemChangeOnIconLoad()) {
+                mBoundViewHolders.remove((ViewHolderBase) holder);
+            }
+            return super.onFailedToRecycleView(holder);
         }
 
         @Override
@@ -3607,6 +3651,33 @@ public class ChooserActivity extends ResolverActivity implements
                     holder.setViewVisibility(i, View.INVISIBLE);
                 }
             }
+        }
+
+        /**
+         * Checks whether the suggested apps group, {@code holder}, contains the target,
+         * {@code info}.
+         */
+        private boolean suggestedAppsGroupContainsTarget(
+                ItemGroupViewHolder holder, DisplayResolveInfo info) {
+
+            int position = holder.getAdapterPosition();
+            int start = getListPosition(position);
+            int startType = getRowType(start);
+
+            int columnCount = holder.getColumnCount();
+            int end = start + columnCount - 1;
+            while (getRowType(end) != startType && end >= start) {
+                end--;
+            }
+
+            for (int i = 0; i < columnCount; i++) {
+                if (start + i <= end) {
+                    if (mChooserListAdapter.getItem(holder.getItemIndex(i)) == info) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         int getListPosition(int position) {

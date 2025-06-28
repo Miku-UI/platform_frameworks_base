@@ -16,12 +16,23 @@
 
 package com.android.server.am;
 
+import static com.android.aconfig_new_storage.Flags.enableAconfigStorageDaemon;
+import static com.android.aconfig_new_storage.Flags.enableAconfigdFromMainline;
+import static com.android.aconfig_new_storage.Flags.supportClearLocalOverridesImmediately;
+import static com.android.aconfig_new_storage.Flags.supportImmediateLocalOverrides;
+
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+
+import android.aconfigd.Aconfigd.StorageRequestMessage;
+import android.aconfigd.Aconfigd.StorageRequestMessages;
+import android.aconfigd.Aconfigd.StorageReturnMessage;
+import android.aconfigd.Aconfigd.StorageReturnMessages;
 import android.annotation.NonNull;
 import android.content.ContentResolver;
 import android.database.ContentObserver;
-import android.net.Uri;
-import android.net.LocalSocketAddress;
 import android.net.LocalSocket;
+import android.net.LocalSocketAddress;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.SystemProperties;
@@ -35,28 +46,13 @@ import android.util.proto.ProtoOutputStream;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.providers.settings.Flags;
 
-import android.aconfigd.Aconfigd.StorageRequestMessage;
-import android.aconfigd.Aconfigd.StorageRequestMessages;
-import android.aconfigd.Aconfigd.StorageReturnMessage;
-import android.aconfigd.Aconfigd.StorageReturnMessages;
-import static com.android.aconfig_new_storage.Flags.enableAconfigStorageDaemon;
-import static com.android.aconfig_new_storage.Flags.supportImmediateLocalOverrides;
-import static com.android.aconfig_new_storage.Flags.supportClearLocalOverridesImmediately;
-import static com.android.aconfig_new_storage.Flags.enableAconfigdFromMainline;
-
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Set;
-import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 /**
  * Maps system settings to system properties.
@@ -115,6 +111,7 @@ public class SettingsToPropertiesMapper {
         DeviceConfig.NAMESPACE_LMKD_NATIVE,
         DeviceConfig.NAMESPACE_MEDIA_NATIVE,
         DeviceConfig.NAMESPACE_MGLRU_NATIVE,
+        DeviceConfig.NAMESPACE_MMD_NATIVE,
         DeviceConfig.NAMESPACE_NETD_NATIVE,
         DeviceConfig.NAMESPACE_NNAPI_NATIVE,
         DeviceConfig.NAMESPACE_PROFCOLLECT_NATIVE_BOOT,
@@ -155,9 +152,11 @@ public class SettingsToPropertiesMapper {
         "android_core_networking",
         "android_health_services",
         "android_sdk",
+        "android_kernel",
         "aoc",
         "app_widgets",
         "arc_next",
+        "art_cloud",
         "art_mainline",
         "art_performance",
         "attack_tools",
@@ -187,8 +186,35 @@ public class SettingsToPropertiesMapper {
         "core_libraries",
         "crumpet",
         "dck_framework",
+        "desktop_apps",
+        "desktop_audio",
+        "desktop_better_together",
+        "desktop_bsp",
+        "desktop_camera",
+        "desktop_connectivity",
+        "desktop_dev_experience",
+        "desktop_display",
+        "desktop_commercial",
+        "desktop_firmware",
+        "desktop_graphics",
         "desktop_hwsec",
+        "desktop_input",
+        "desktop_kernel",
+        "desktop_ml",
+        "desktop_networking",
+        "desktop_serviceability",
+        "desktop_oobe",
+        "desktop_peripherals",
+        "desktop_personalization",
+        "desktop_pnp",
+        "desktop_privacy",
+        "desktop_release",
+        "desktop_security",
         "desktop_stats",
+        "desktop_sysui",
+        "desktop_users_and_accounts",
+        "desktop_video",
+        "desktop_wifi",
         "devoptions_settings",
         "game",
         "gpu",
@@ -208,6 +234,7 @@ public class SettingsToPropertiesMapper {
         "media_reliability",
         "media_solutions",
         "media_tv",
+        "microxr",
         "nearby",
         "nfc",
         "pdf_viewer",
@@ -218,15 +245,21 @@ public class SettingsToPropertiesMapper {
         "pixel_connectivity_gps",
         "pixel_continuity",
         "pixel_display",
+        "pixel_fingerprint",
+        "pixel_gsc",
         "pixel_perf",
+        "pixel_sensai",
         "pixel_sensors",
         "pixel_state_server",
         "pixel_system_sw_video",
         "pixel_video_sw",
+        "pixel_vpn",
         "pixel_watch",
+        "pixel_watch_debug_trace",
+        "pixel_watch_watchfaces",
+        "pixel_wifi",
         "platform_compat",
         "platform_security",
-        "pixel_watch_debug_trace",
         "pmw",
         "power",
         "preload_safety",
@@ -269,6 +302,7 @@ public class SettingsToPropertiesMapper {
         "wear_sysui",
         "wear_system_managed_surfaces",
         "wear_watchfaces",
+        "web_apps_on_chromeos_and_android",
         "window_surfaces",
         "windowing_frontend",
         "xr",
@@ -283,8 +317,6 @@ public class SettingsToPropertiesMapper {
 
     private final String[] mDeviceConfigScopes;
 
-    private final String[] mDeviceConfigAconfigScopes;
-
     private final ContentResolver mContentResolver;
 
     @VisibleForTesting
@@ -295,7 +327,6 @@ public class SettingsToPropertiesMapper {
         mContentResolver = contentResolver;
         mGlobalSettings = globalSettings;
         mDeviceConfigScopes = deviceConfigScopes;
-        mDeviceConfigAconfigScopes = deviceConfigAconfigScopes;
     }
 
     @VisibleForTesting
@@ -341,36 +372,6 @@ public class SettingsToPropertiesMapper {
                                 return;
                             }
                             setProperty(propertyName, properties.getString(key, null));
-
-                            // for legacy namespaces, they can also be used for trunk stable
-                            // purposes. so push flag also into trunk stable slot in sys prop,
-                            // later all legacy usage will be refactored and the sync to old
-                            // sys prop slot can be removed.
-                            String aconfigPropertyName = makeAconfigFlagPropertyName(scope, key);
-                            if (aconfigPropertyName == null) {
-                                logErr("unable to construct system property for " + scope + "/"
-                                        + key);
-                                return;
-                            }
-                            setProperty(aconfigPropertyName, properties.getString(key, null));
-                        }
-                    });
-        }
-
-        for (String deviceConfigAconfigScope : mDeviceConfigAconfigScopes) {
-            DeviceConfig.addOnPropertiesChangedListener(
-                    deviceConfigAconfigScope,
-                    AsyncTask.THREAD_POOL_EXECUTOR,
-                    (DeviceConfig.Properties properties) -> {
-                        String scope = properties.getNamespace();
-                        for (String key : properties.getKeyset()) {
-                            String aconfigPropertyName = makeAconfigFlagPropertyName(scope, key);
-                            if (aconfigPropertyName == null) {
-                                logErr("unable to construct system property for " + scope + "/"
-                                        + key);
-                                return;
-                            }
-                            setProperty(aconfigPropertyName, properties.getString(key, null));
                         }
                     });
         }
@@ -381,38 +382,11 @@ public class SettingsToPropertiesMapper {
             newSingleThreadScheduledExecutor(),
             (DeviceConfig.Properties properties) -> {
 
-              for (String flagName : properties.getKeyset()) {
-                  String flagValue = properties.getString(flagName, null);
-                  if (flagName == null || flagValue == null) {
-                      continue;
-                  }
-
-                  int idx = flagName.indexOf(NAMESPACE_REBOOT_STAGING_DELIMITER);
-                  if (idx == -1 || idx == flagName.length() - 1 || idx == 0) {
-                      logErr("invalid staged flag: " + flagName);
-                      continue;
-                  }
-
-                  String actualNamespace = flagName.substring(0, idx);
-                  String actualFlagName = flagName.substring(idx+1);
-                  String propertyName = "next_boot." + makeAconfigFlagPropertyName(
-                      actualNamespace, actualFlagName);
-
-                  if (Flags.supportLocalOverridesSysprops()) {
-                    // Don't propagate if there is a local override.
-                    String overrideName = actualNamespace + ":" + actualFlagName;
-                    if (DeviceConfig.getProperty(NAMESPACE_LOCAL_OVERRIDES, overrideName) != null) {
-                      continue;
-                    }
-                  }
-                  setProperty(propertyName, flagValue);
-              }
-
               // send prop stage request to new storage
               if (enableAconfigStorageDaemon()) {
                   stageFlagsInNewStorage(properties);
+                  return;
               }
-
         });
 
         // add prop sync callback for flag local overrides
@@ -422,42 +396,7 @@ public class SettingsToPropertiesMapper {
             (DeviceConfig.Properties properties) -> {
                 if (enableAconfigStorageDaemon()) {
                     setLocalOverridesInNewStorage(properties);
-                }
-
-                if (Flags.supportLocalOverridesSysprops()) {
-                  String overridesNamespace = properties.getNamespace();
-                  for (String key : properties.getKeyset()) {
-                    String realNamespace = key.split(":")[0];
-                    String realFlagName = key.split(":")[1];
-                    String aconfigPropertyName =
-                        makeAconfigFlagPropertyName(realNamespace, realFlagName);
-                    if (aconfigPropertyName == null) {
-                      logErr("unable to construct system property for " + realNamespace + "/"
-                        + key);
-                      return;
-                    }
-
-                    if (properties.getString(key, null) == null) {
-                      String deviceConfigValue =
-                              DeviceConfig.getProperty(realNamespace, realFlagName);
-                      String stagedDeviceConfigValue =
-                              DeviceConfig.getProperty(NAMESPACE_REBOOT_STAGING,
-                                              realNamespace + "*" + realFlagName);
-
-                      setProperty(aconfigPropertyName, deviceConfigValue);
-                      if (stagedDeviceConfigValue == null) {
-                        setProperty("next_boot." + aconfigPropertyName, deviceConfigValue);
-                      } else {
-                        setProperty("next_boot." + aconfigPropertyName, stagedDeviceConfigValue);
-                      }
-                    } else {
-                      // Otherwise, propagate the override to sysprops.
-                      setProperty(aconfigPropertyName, properties.getString(key, null));
-                      // If there's a staged value, make sure it's the override value.
-                      setProperty("next_boot." + aconfigPropertyName,
-                                properties.getString(key, null));
-                    }
-                  }
+                    return;
                 }
         });
     }
@@ -784,28 +723,6 @@ public class SettingsToPropertiesMapper {
 
         // send requests to aconfigd
         sendAconfigdRequests(requests);
-    }
-
-    /**
-     * system property name constructing rule for aconfig flags:
-     * "persist.device_config.aconfig_flags.[category_name].[flag_name]".
-     * If the name contains invalid characters or substrings for system property name,
-     * will return null.
-     * @param categoryName
-     * @param flagName
-     * @return
-     */
-    @VisibleForTesting
-    static String makeAconfigFlagPropertyName(String categoryName, String flagName) {
-        String propertyName = SYSTEM_PROPERTY_PREFIX + "aconfig_flags." +
-                              categoryName + "." + flagName;
-
-        if (!propertyName.matches(SYSTEM_PROPERTY_VALID_CHARACTERS_REGEX)
-                || propertyName.contains(SYSTEM_PROPERTY_INVALID_SUBSTRING)) {
-            return null;
-        }
-
-        return propertyName;
     }
 
     private void setProperty(String key, String value) {

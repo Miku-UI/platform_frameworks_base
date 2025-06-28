@@ -1999,9 +1999,9 @@ bool IncrementalService::configureNativeBinaries(StorageId storage, std::string_
         // Create new lib file without signature info
         incfs::NewFileParams libFileParams = {
                 .size = entry.uncompressed_length,
-                .signature = {},
                 // Metadata of the new lib file is its relative path
                 .metadata = {targetLibPath.c_str(), (IncFsSize)targetLibPath.size()},
+                .signature = {},
         };
         incfs::FileId libFileId = idFromMetadata(targetLibPath);
         if (auto res = mIncFs->makeFile(ifs->control, targetLibPathAbsolute, 0755, libFileId,
@@ -3198,8 +3198,10 @@ void IncrementalService::DataLoaderStub::onDump(int fd) {
     dprintf(fd, "    }\n");
 }
 
-void IncrementalService::AppOpsListener::opChanged(int32_t, const String16&) {
+binder::Status IncrementalService::AppOpsListener::opChanged(int32_t, int32_t,
+                                                             const String16&, const String16&) {
     incrementalService.onAppOpChanged(packageName);
+    return binder::Status::ok();
 }
 
 binder::Status IncrementalService::IncrementalServiceConnector::setStorageParams(

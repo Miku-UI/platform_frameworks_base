@@ -33,6 +33,7 @@ genrule_defaults {
         ":ravenwood-common-policies",
         ":ravenwood-framework-policies",
         ":ravenwood-standard-options",
+        ":ravenwood-standard-annotations",
         ":ravenwood-annotation-allowed-classes",
     ],
     out: [
@@ -44,6 +45,7 @@ genrule_defaults {
 
 framework_minus_apex_cmd = "$(location hoststubgen) " +
     "@$(location :ravenwood-standard-options) " +
+    "@$(location :ravenwood-standard-annotations) " +
     "--debug-log $(location hoststubgen_framework-minus-apex.log) " +
     "--out-jar $(location ravenwood.jar) " +
     "--in-jar $(location :framework-minus-apex-for-host) " +
@@ -178,6 +180,7 @@ java_genrule {
     tools: ["hoststubgen"],
     cmd: "$(location hoststubgen) " +
         "@$(location :ravenwood-standard-options) " +
+        "@$(location :ravenwood-standard-annotations) " +
 
         "--debug-log $(location hoststubgen_services.core.log) " +
         "--stats-file $(location hoststubgen_services.core_stats.csv) " +
@@ -196,6 +199,7 @@ java_genrule {
         ":ravenwood-common-policies",
         ":ravenwood-services-policies",
         ":ravenwood-standard-options",
+        ":ravenwood-standard-annotations",
         ":ravenwood-annotation-allowed-classes",
     ],
     out: [
@@ -247,6 +251,7 @@ java_genrule {
     tools: ["hoststubgen"],
     cmd: "$(location hoststubgen) " +
         "@$(location :ravenwood-standard-options) " +
+        "@$(location :ravenwood-standard-annotations) " +
 
         "--debug-log $(location hoststubgen_core-icu4j-for-host.log) " +
         "--stats-file $(location hoststubgen_core-icu4j-for-host_stats.csv) " +
@@ -265,6 +270,7 @@ java_genrule {
         ":ravenwood-common-policies",
         ":icu-ravenwood-policies",
         ":ravenwood-standard-options",
+        ":ravenwood-standard-annotations",
     ],
     out: [
         "ravenwood.jar",
@@ -301,6 +307,7 @@ java_genrule {
     tools: ["hoststubgen"],
     cmd: "$(location hoststubgen) " +
         "@$(location :ravenwood-standard-options) " +
+        "@$(location :ravenwood-standard-annotations) " +
 
         "--debug-log $(location framework-configinfrastructure.log) " +
         "--stats-file $(location framework-configinfrastructure_stats.csv) " +
@@ -319,6 +326,7 @@ java_genrule {
         ":ravenwood-common-policies",
         ":framework-configinfrastructure-ravenwood-policies",
         ":ravenwood-standard-options",
+        ":ravenwood-standard-annotations",
     ],
     out: [
         "ravenwood.jar",
@@ -355,6 +363,7 @@ java_genrule {
     tools: ["hoststubgen"],
     cmd: "$(location hoststubgen) " +
         "@$(location :ravenwood-standard-options) " +
+        "@$(location :ravenwood-standard-annotations) " +
 
         "--debug-log $(location framework-statsd.log) " +
         "--stats-file $(location framework-statsd_stats.csv) " +
@@ -373,6 +382,7 @@ java_genrule {
         ":ravenwood-common-policies",
         ":framework-statsd-ravenwood-policies",
         ":ravenwood-standard-options",
+        ":ravenwood-standard-annotations",
     ],
     out: [
         "ravenwood.jar",
@@ -397,5 +407,61 @@ java_genrule {
     ],
     out: [
         "framework-statsd.ravenwood.jar",
+    ],
+}
+
+//////////////////////
+// framework-graphics
+//////////////////////
+
+java_genrule {
+    name: "framework-graphics.ravenwood-base",
+    tools: ["hoststubgen"],
+    cmd: "$(location hoststubgen) " +
+        "@$(location :ravenwood-standard-options) " +
+        "@$(location :ravenwood-standard-annotations) " +
+
+        "--debug-log $(location framework-graphics.log) " +
+        "--stats-file $(location framework-graphics_stats.csv) " +
+        "--supported-api-list-file $(location framework-graphics_apis.csv) " +
+        "--gen-keep-all-file $(location framework-graphics_keep_all.txt) " +
+        "--gen-input-dump-file $(location framework-graphics_dump.txt) " +
+
+        "--out-impl-jar $(location ravenwood.jar) " +
+        "--in-jar $(location :framework-graphics.impl{.jar}) " +
+
+        "--policy-override-file $(location :ravenwood-common-policies) " +
+        "--policy-override-file $(location :framework-graphics-ravenwood-policies) ",
+    srcs: [
+        ":framework-graphics.impl{.jar}",
+
+        ":ravenwood-common-policies",
+        ":framework-graphics-ravenwood-policies",
+        ":ravenwood-standard-options",
+        ":ravenwood-standard-annotations",
+    ],
+    out: [
+        "ravenwood.jar",
+
+        // Following files are created just as FYI.
+        "framework-graphics_keep_all.txt",
+        "framework-graphics_dump.txt",
+
+        "framework-graphics.log",
+        "framework-graphics_stats.csv",
+        "framework-graphics_apis.csv",
+    ],
+    visibility: ["//visibility:private"],
+}
+
+java_genrule {
+    name: "framework-graphics.ravenwood",
+    defaults: ["ravenwood-internal-only-visibility-genrule"],
+    cmd: "cp $(in) $(out)",
+    srcs: [
+        ":framework-graphics.ravenwood-base{ravenwood.jar}",
+    ],
+    out: [
+        "framework-graphics.ravenwood.jar",
     ],
 }

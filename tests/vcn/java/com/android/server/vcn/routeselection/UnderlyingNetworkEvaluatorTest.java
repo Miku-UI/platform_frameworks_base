@@ -28,7 +28,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -39,18 +38,24 @@ import static org.mockito.Mockito.when;
 import android.net.IpSecTransform;
 import android.net.vcn.VcnGatewayConnectionConfig;
 
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
 import com.android.server.vcn.routeselection.NetworkMetricMonitor.NetworkMetricMonitorCallback;
 import com.android.server.vcn.routeselection.UnderlyingNetworkEvaluator.Dependencies;
 import com.android.server.vcn.routeselection.UnderlyingNetworkEvaluator.NetworkEvaluatorCallback;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 
 import java.util.concurrent.TimeUnit;
 
+@RunWith(AndroidJUnit4.class)
+@SmallTest
 public class UnderlyingNetworkEvaluatorTest extends NetworkEvaluationTestBase {
     private static final int PENALTY_TIMEOUT_MIN = 10;
     private static final long PENALTY_TIMEOUT_MS = TimeUnit.MINUTES.toMillis(PENALTY_TIMEOUT_MIN);
@@ -72,7 +77,7 @@ public class UnderlyingNetworkEvaluatorTest extends NetworkEvaluationTestBase {
                 .thenReturn(mIpSecPacketLossDetector);
 
         when(mCarrierConfig.getIntArray(
-                        eq(VCN_NETWORK_SELECTION_PENALTY_TIMEOUT_MINUTES_LIST_KEY), anyObject()))
+                        eq(VCN_NETWORK_SELECTION_PENALTY_TIMEOUT_MINUTES_LIST_KEY), any()))
                 .thenReturn(new int[] {PENALTY_TIMEOUT_MIN});
 
         mNetworkEvaluator = newValidUnderlyingNetworkEvaluator();
@@ -298,7 +303,7 @@ public class UnderlyingNetworkEvaluatorTest extends NetworkEvaluationTestBase {
     public void testSetCarrierConfig() throws Exception {
         final int additionalTimeoutMin = 10;
         when(mCarrierConfig.getIntArray(
-                        eq(VCN_NETWORK_SELECTION_PENALTY_TIMEOUT_MINUTES_LIST_KEY), anyObject()))
+                        eq(VCN_NETWORK_SELECTION_PENALTY_TIMEOUT_MINUTES_LIST_KEY), any()))
                 .thenReturn(new int[] {PENALTY_TIMEOUT_MIN + additionalTimeoutMin});
 
         // Update evaluator and penalize the network

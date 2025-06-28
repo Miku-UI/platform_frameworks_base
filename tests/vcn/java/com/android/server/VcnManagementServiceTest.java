@@ -41,6 +41,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -79,6 +80,7 @@ import android.net.vcn.VcnManager;
 import android.net.vcn.VcnUnderlyingNetworkPolicy;
 import android.net.vcn.util.PersistableBundleUtils;
 import android.net.vcn.util.PersistableBundleUtils.PersistableBundleWrapper;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.ParcelUuid;
 import android.os.PersistableBundle;
@@ -117,7 +119,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 
-/** Tests for {@link VcnManagementService}. */
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class VcnManagementServiceTest {
@@ -1084,6 +1085,10 @@ public class VcnManagementServiceTest {
 
     @Test
     public void testGetRestrictedTransportsFromCarrierConfig() {
+        assumeTrue(
+                "Configuring restricted transport types is only allowed on a debuggable build",
+                Build.isDebuggable());
+
         final Set<Integer> restrictedTransports = new ArraySet<>();
         restrictedTransports.add(TRANSPORT_CELLULAR);
         restrictedTransports.add(TRANSPORT_WIFI);
@@ -1105,6 +1110,10 @@ public class VcnManagementServiceTest {
 
     @Test
     public void testGetRestrictedTransportsFromCarrierConfig_noRestrictPolicyConfigured() {
+        assumeTrue(
+                "Configuring restricted transport types is only allowed on a debuggable build",
+                Build.isDebuggable());
+
         final Set<Integer> restrictedTransports = Collections.singleton(TRANSPORT_WIFI);
 
         final PersistableBundleWrapper carrierConfig =
@@ -1119,6 +1128,10 @@ public class VcnManagementServiceTest {
 
     @Test
     public void testGetRestrictedTransportsFromCarrierConfig_noCarrierConfig() {
+        assumeTrue(
+                "Configuring restricted transport types is only allowed on a debuggable build",
+                Build.isDebuggable());
+
         final Set<Integer> restrictedTransports = Collections.singleton(TRANSPORT_WIFI);
 
         final TelephonySubscriptionSnapshot lastSnapshot =
@@ -1130,6 +1143,10 @@ public class VcnManagementServiceTest {
 
     @Test
     public void testGetRestrictedTransportsFromCarrierConfigAndVcnConfig() {
+        assumeTrue(
+                "Configuring restricted transport types is only allowed on a debuggable build",
+                Build.isDebuggable());
+
         // Configure restricted transport in CarrierConfig
         final Set<Integer> restrictedTransportInCarrierConfig =
                 Collections.singleton(TRANSPORT_WIFI);

@@ -35,6 +35,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemProperties;
 import android.os.Trace;
+import android.util.DisplayMetrics;
 import android.util.DisplayUtils;
 import android.util.LongSparseArray;
 import android.util.Slog;
@@ -50,7 +51,6 @@ import android.view.RoundedCorners;
 import android.view.SurfaceControl;
 
 import com.android.internal.R;
-import com.android.internal.annotations.KeepForWeakReference;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.display.BrightnessSynchronizer;
 import com.android.internal.util.function.pooled.PooledLambda;
@@ -82,6 +82,12 @@ final class LocalDisplayAdapter extends DisplayAdapter {
     private static final String UNIQUE_ID_PREFIX = "local:";
 
     private static final String PROPERTY_EMULATOR_CIRCULAR = "ro.boot.emulator.circular";
+
+    private static final double DEFAULT_DISPLAY_SIZE = 24.0;
+    // Touch target size 10.4mm in inches (divided by mm per inch 25.4)
+    private static final double EXTERNAL_DISPLAY_BASE_TOUCH_TARGET_SIZE_IN_INCHES = 10.4 / 25.4;
+
+    private static final double BASE_TOUCH_TARGET_SIZE_DP = 48.0;
 
     private final LongSparseArray<LocalDisplayDevice> mDevices = new LongSparseArray<>();
 
@@ -199,21 +205,6 @@ final class LocalDisplayAdapter extends DisplayAdapter {
             // Display was removed.
             mDevices.remove(physicalDisplayId);
             sendDisplayDeviceEventLocked(device, DISPLAY_DEVICE_EVENT_REMOVED);
-        }
-    }
-
-    static int getPowerModeForState(int state) {
-        switch (state) {
-            case Display.STATE_OFF:
-                return SurfaceControl.POWER_MODE_OFF;
-            case Display.STATE_DOZE:
-                return SurfaceControl.POWER_MODE_DOZE;
-            case Display.STATE_DOZE_SUSPEND:
-                return SurfaceControl.POWER_MODE_DOZE_SUSPEND;
-            case Display.STATE_ON_SUSPEND:
-                return SurfaceControl.POWER_MODE_ON_SUSPEND;
-            default:
-                return SurfaceControl.POWER_MODE_NORMAL;
         }
     }
 
@@ -526,6 +517,24 @@ final class LocalDisplayAdapter extends DisplayAdapter {
         private int getLogicalDensity() {
             DensityMapping densityMapping = getDisplayDeviceConfig().getDensityMapping();
             if (densityMapping == null) {
+                if (getFeatureFlags().isBaseDensityForExternalDisplaysEnabled()
+                        && !mStaticDisplayInfo.isInternal) {
+                    double ppi;
+
+                    if (mActiveSfDisplayMode.xDpi > 0 && mActiveSfDisplayMode.yDpi > 0) {
+                        ppi = Math.sqrt((Math.pow(mActiveSfDisplayMode.xDpi, 2)
+                                + Math.pow(mActiveSfDisplayMode.yDpi, 2)) / 2);
+                    } else {
+                        // xDPI and yDPI is missing, calculate DPI from display resolution and
+                        // default display size
+                        ppi = Math.sqrt(Math.pow(mInfo.width, 2) + Math.pow(mInfo.height, 2))
+                                / DEFAULT_DISPLAY_SIZE;
+                    }
+                    double pixels = ppi * EXTERNAL_DISPLAY_BASE_TOUCH_TARGET_SIZE_IN_INCHES;
+                    double dpi =
+                            pixels * DisplayMetrics.DENSITY_DEFAULT / BASE_TOUCH_TARGET_SIZE_DP;
+                    return (int) (dpi + 0.5);
+                }
                 return (int) (mStaticDisplayInfo.density * 160 + 0.5);
             }
 
@@ -757,12 +766,26 @@ final class LocalDisplayAdapter extends DisplayAdapter {
                         mInfo.flags |= DisplayDeviceInfo.FLAG_ROUND;
                     }
                 } else {
-                    if (!res.getBoolean(R.bool.config_localDisplaysMirrorContent)) {
+                    if (shouldOwnContentOnly()) {
                         mInfo.flags |= DisplayDeviceInfo.FLAG_OWN_CONTENT_ONLY;
                     }
 
                     if (isDisplayPrivate(physicalAddress)) {
                         mInfo.flags |= DisplayDeviceInfo.FLAG_PRIVATE;
+                    }
+
+                    if (isDisplayStealTopFocusDisabled(physicalAddress)) {
+                        mInfo.flags |= DisplayDeviceInfo.FLAG_OWN_FOCUS;
+                        mInfo.flags |= DisplayDeviceInfo.FLAG_STEAL_TOP_FOCUS_DISABLED;
+                    }
+                }
+
+                if (getFeatureFlags().isDisplayContentModeManagementEnabled()) {
+                    // Public display with FLAG_OWN_CONTENT_ONLY disabled is allowed to switch the
+                    // content mode.
+                    if (mIsFirstDisplay
+                            || (!isDisplayPrivate(physicalAddress) && !shouldOwnContentOnly())) {
+                        mInfo.flags |= DisplayDeviceInfo.FLAG_ALLOWS_CONTENT_MODE_SWITCH;
                     }
                 }
 
@@ -808,6 +831,7 @@ final class LocalDisplayAdapter extends DisplayAdapter {
                                 R.string.display_manager_hdmi_display_name);
                     }
                 }
+
                 mInfo.frameRateOverrides = mFrameRateOverrides;
 
                 // The display is trusted since it is created by system.
@@ -1022,7 +1046,9 @@ final class LocalDisplayAdapter extends DisplayAdapter {
 
                     void handleHdrSdrNitsChanged(float displayNits, float sdrNits) {
                         final float newHdrSdrRatio;
-                        if (displayNits != INVALID_NITS && sdrNits != INVALID_NITS) {
+                        if (displayNits != INVALID_NITS && sdrNits != INVALID_NITS
+                            && (mBacklightAdapter.mUseSurfaceControlBrightness ||
+                                mBacklightAdapter.mForceSurfaceControl)) {
                             // Ensure the ratio stays >= 1.0f as values below that are nonsensical
                             newHdrSdrRatio = Math.max(1.f, displayNits / sdrNits);
                         } else {
@@ -1450,6 +1476,28 @@ final class LocalDisplayAdapter extends DisplayAdapter {
             }
             return false;
         }
+
+        private boolean shouldOwnContentOnly() {
+            final Resources res = getOverlayContext().getResources();
+            return !res.getBoolean(R.bool.config_localDisplaysMirrorContent);
+        }
+
+        private boolean isDisplayStealTopFocusDisabled(DisplayAddress.Physical physicalAddress) {
+            if (physicalAddress == null) {
+                return false;
+            }
+            final Resources res = getOverlayContext().getResources();
+            int[] ports = res.getIntArray(R.array.config_localNotStealTopFocusDisplayPorts);
+            if (ports != null) {
+                int port = physicalAddress.getPort();
+                for (int p : ports) {
+                    if (p == port) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
     }
 
     private boolean hdrTypesEqual(int[] modeHdrTypes, int[] recordHdrTypes) {
@@ -1501,9 +1549,7 @@ final class LocalDisplayAdapter extends DisplayAdapter {
     }
 
     public static class Injector {
-        // Ensure the callback is kept to preserve native weak reference lifecycle semantics.
         @SuppressWarnings("unused")
-        @KeepForWeakReference
         private ProxyDisplayEventReceiver mReceiver;
         public void setDisplayEventListenerLocked(Looper looper, DisplayEventListener listener) {
             mReceiver = new ProxyDisplayEventReceiver(looper, listener);

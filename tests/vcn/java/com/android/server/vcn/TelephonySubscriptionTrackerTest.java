@@ -87,7 +87,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** Tests for TelephonySubscriptionTracker */
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class TelephonySubscriptionTrackerTest {

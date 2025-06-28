@@ -149,6 +149,11 @@ public class Binder implements IBinder {
     private static volatile boolean sStackTrackingEnabled = false;
 
     /**
+     * The extension binder object
+     */
+    private IBinder mExtension = null;
+
+    /**
      * Enable Binder IPC stack tracking. If enabled, every binder transaction will be logged to
      * {@link TransactionTracker}.
      *
@@ -313,7 +318,10 @@ public class Binder implements IBinder {
      * If the current thread is not currently executing an incoming transaction,
      * then its own PID is returned.
      *
-     * Warning: oneway transactions do not receive PID. Even if you expect
+     * Warning do not use this as a security identifier! PID is unreliable
+     * as it may be re-used. This should mostly be used for debugging.
+     *
+     * oneway transactions do not receive PID. Even if you expect
      * a transaction to be synchronous, a misbehaving client could send it
      * as a asynchronous call and result in a 0 PID here. Additionally, if
      * there is a race and the calling process dies, the PID may still be
@@ -1234,7 +1242,9 @@ public class Binder implements IBinder {
 
     /** @hide */
     @Override
-    public final native @Nullable IBinder getExtension();
+    public final @Nullable IBinder getExtension() {
+        return mExtension;
+    }
 
     /**
      * Set the binder extension.
@@ -1242,7 +1252,12 @@ public class Binder implements IBinder {
      *
      * @hide
      */
-    public final native void setExtension(@Nullable IBinder extension);
+    public final void setExtension(@Nullable IBinder extension) {
+        mExtension = extension;
+        setExtensionNative(extension);
+    }
+
+    private final native void setExtensionNative(@Nullable IBinder extension);
 
     /**
      * Default implementation rewinds the parcels and calls onTransact. On

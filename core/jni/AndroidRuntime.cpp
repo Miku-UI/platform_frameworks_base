@@ -22,6 +22,7 @@
 #include <android-base/parsebool.h>
 #include <android-base/properties.h>
 #include <android/graphics/jni_runtime.h>
+#include <android_os.h>
 #include <android_runtime/AndroidRuntime.h>
 #include <assert.h>
 #include <binder/IBinder.h>
@@ -100,8 +101,10 @@ extern int register_android_media_AudioTrack(JNIEnv *env);
 extern int register_android_media_AudioAttributes(JNIEnv *env);
 extern int register_android_media_AudioProductStrategies(JNIEnv *env);
 extern int register_android_media_AudioVolumeGroups(JNIEnv *env);
-extern int register_android_media_AudioVolumeGroupChangeHandler(JNIEnv *env);
+extern int register_android_media_ImageReader(JNIEnv *env);
+extern int register_android_media_ImageWriter(JNIEnv *env);
 extern int register_android_media_MicrophoneInfo(JNIEnv *env);
+extern int register_android_media_PublicFormatUtils(JNIEnv *env);
 extern int register_android_media_ToneGenerator(JNIEnv *env);
 extern int register_android_media_audio_common_AidlConversion(JNIEnv* env);
 extern int register_android_media_midi(JNIEnv *env);
@@ -158,6 +161,8 @@ extern int register_android_os_SELinux(JNIEnv* env);
 extern int register_android_os_storage_StorageManager(JNIEnv* env);
 extern int register_android_os_SystemProperties(JNIEnv *env);
 extern int register_android_os_SystemClock(JNIEnv* env);
+extern int register_android_os_PerfettoTrace(JNIEnv* env);
+extern int register_android_os_PerfettoTrackEventExtra(JNIEnv* env);
 extern int register_android_os_Trace(JNIEnv* env);
 extern int register_android_os_FileObserver(JNIEnv *env);
 extern int register_android_os_UEventObserver(JNIEnv* env);
@@ -892,9 +897,13 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote, bool p
                        madviseWillNeedFileSizeOdex,
                        "-XMadviseWillNeedOdexFileSize:");
 
-    parseRuntimeOption("dalvik.vm.madvise.artfile.size",
-                       madviseWillNeedFileSizeArt,
-                       "-XMadviseWillNeedArtFileSize:");
+    // Historically, dalvik.vm.madvise.artfile.size was set to UINT_MAX by default. With the
+    // disable_madvise_art_default flag rollout, we use this default only when the flag is disabled.
+    // TODO(b/382110550): Remove this property/flag entirely after validating and ramping.
+    const char* madvise_artfile_size_default =
+            android::os::disable_madvise_artfile_default() ? "" : "4294967295";
+    parseRuntimeOption("dalvik.vm.madvise.artfile.size", madviseWillNeedFileSizeArt,
+                       "-XMadviseWillNeedArtFileSize:", madvise_artfile_size_default);
 
     /*
      * Profile related options.
@@ -1606,6 +1615,8 @@ static const RegJNIRec gRegJNI[] = {
         REG_JNI(register_android_os_GraphicsEnvironment),
         REG_JNI(register_android_os_MessageQueue),
         REG_JNI(register_android_os_SELinux),
+        REG_JNI(register_android_os_PerfettoTrace),
+        REG_JNI(register_android_os_PerfettoTrackEventExtra),
         REG_JNI(register_android_os_Trace),
         REG_JNI(register_android_os_UEventObserver),
         REG_JNI(register_android_net_LocalSocketImpl),
@@ -1649,9 +1660,11 @@ static const RegJNIRec gRegJNI[] = {
         REG_JNI(register_android_media_AudioAttributes),
         REG_JNI(register_android_media_AudioProductStrategies),
         REG_JNI(register_android_media_AudioVolumeGroups),
-        REG_JNI(register_android_media_AudioVolumeGroupChangeHandler),
+        REG_JNI(register_android_media_ImageReader),
+        REG_JNI(register_android_media_ImageWriter),
         REG_JNI(register_android_media_MediaMetrics),
         REG_JNI(register_android_media_MicrophoneInfo),
+        REG_JNI(register_android_media_PublicFormatUtils),
         REG_JNI(register_android_media_RemoteDisplay),
         REG_JNI(register_android_media_ToneGenerator),
         REG_JNI(register_android_media_audio_common_AidlConversion),

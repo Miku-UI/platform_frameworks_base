@@ -31,10 +31,10 @@ import static com.android.server.vcn.Vcn.VcnContentResolver;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -55,6 +55,9 @@ import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.util.ArraySet;
 
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
 import com.android.server.VcnManagementService.VcnCallback;
 import com.android.server.vcn.TelephonySubscriptionTracker.TelephonySubscriptionSnapshot;
 import com.android.server.vcn.Vcn.VcnGatewayStatusCallback;
@@ -63,6 +66,7 @@ import com.android.server.vcn.VcnNetworkProvider.NetworkRequestListener;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
@@ -73,6 +77,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 
+@RunWith(AndroidJUnit4.class)
+@SmallTest
 public class VcnTest {
     private static final String PKG_NAME = VcnTest.class.getPackage().getName();
     private static final ParcelUuid TEST_SUB_GROUP = new ParcelUuid(new UUID(0, 0));

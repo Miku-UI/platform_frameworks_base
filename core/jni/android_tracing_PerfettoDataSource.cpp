@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
 #define LOG_TAG "NativeJavaPerfettoDs"
 
@@ -95,6 +96,9 @@ jobject PerfettoDataSource::newInstance(JNIEnv* env, void* ds_config, size_t ds_
 
 bool PerfettoDataSource::TraceIterateBegin() {
     if (gInIteration) {
+        ALOG(LOG_ERROR, LOG_TAG,
+              "Tried calling TraceIterateBegin with an already active iterator for datasource %s.",
+              dataSourceName.c_str());
         return false;
     }
 

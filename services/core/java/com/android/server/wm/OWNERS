@@ -3,7 +3,6 @@ set noparent
 ogunwale@google.com
 jjaggi@google.com
 racarr@google.com
-chaviw@google.com
 vishnun@google.com
 akulian@google.com
 roosa@google.com
@@ -21,12 +20,13 @@ jiamingliu@google.com
 pdwilliams@google.com
 charlesccchen@google.com
 marziana@google.com
+mcarli@google.com
 
 # Files related to background activity launches
 per-file Background*Start* = set noparent
 per-file Background*Start* = file:/BAL_OWNERS
 per-file Background*Start* = ogunwale@google.com, louischang@google.com
-per-file BackgroundLaunchProcessController.java = file:/BAL_OWNERS
+per-file BackgroundLaunchProcessController*.java = file:/BAL_OWNERS
 
 # File related to activity callers
 per-file ActivityCallerState.java = file:/core/java/android/app/COMPONENT_CALLER_OWNERS

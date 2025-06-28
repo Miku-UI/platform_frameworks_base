@@ -20,6 +20,8 @@ import static android.media.codec.Flags.FLAG_CODEC_AVAILABILITY;
 import static android.media.codec.Flags.FLAG_NULL_OUTPUT_SURFACE;
 import static android.media.codec.Flags.FLAG_REGION_OF_INTEREST;
 import static android.media.codec.Flags.FLAG_SUBSESSION_METRICS;
+import static android.media.tv.flags.Flags.applyPictureProfiles;
+import static android.media.tv.flags.Flags.mediaQualityFw;
 
 import static com.android.media.codec.flags.Flags.FLAG_LARGE_AUDIO_FRAME;
 
@@ -37,6 +39,8 @@ import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.hardware.HardwareBuffer;
 import android.media.MediaCodecInfo.CodecCapabilities;
+import android.media.quality.PictureProfile;
+import android.media.quality.PictureProfileHandle;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -44,7 +48,9 @@ import android.os.IHwBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
+import android.os.Trace;
 import android.view.Surface;
+import android.util.Log;
 
 import java.io.IOException;
 import java.lang.annotation.Retention;
@@ -1651,6 +1657,7 @@ import java.util.function.Supplier;
  </table>
  */
 final public class MediaCodec {
+    private static final String TAG = "MediaCodec";
 
     /**
      * Per buffer metadata includes an offset and size specifying
@@ -2491,6 +2498,49 @@ final public class MediaCodec {
                     }
                     keys[i] = "audio-hw-sync";
                     values[i] = AudioSystem.getAudioHwSyncForSession(sessionId);
+                } else if (applyPictureProfiles() && mediaQualityFw()
+                        && entry.getKey().equals(MediaFormat.KEY_PICTURE_PROFILE_INSTANCE)) {
+                    PictureProfile pictureProfile = null;
+                    try {
+                        pictureProfile = (PictureProfile) entry.getValue();
+                    } catch (ClassCastException e) {
+                        throw new IllegalArgumentException(
+                                "Cannot cast the instance parameter to PictureProfile!");
+                    } catch (Exception e) {
+                        Log.e(TAG, Log.getStackTraceString(e));
+                        throw new IllegalArgumentException("Unexpected exception when casting the "
+                                + "instance parameter to PictureProfile!");
+                    }
+                    if (pictureProfile == null) {
+                        throw new IllegalArgumentException(
+                                "Picture profile instance parameter is null!");
+                    }
+                    PictureProfileHandle handle = pictureProfile.getHandle();
+                    if (handle != PictureProfileHandle.NONE) {
+                        keys[i] = PARAMETER_KEY_PICTURE_PROFILE_HANDLE;
+                        values[i] = Long.valueOf(handle.getId());
+                    }
+                } else if (applyPictureProfiles() && mediaQualityFw()
+                        && entry.getKey().equals(MediaFormat.KEY_PICTURE_PROFILE_ID)) {
+                    String pictureProfileId = null;
+                    try {
+                        pictureProfileId = (String) entry.getValue();
+                    } catch (ClassCastException e) {
+                        throw new IllegalArgumentException(
+                                "Cannot cast the KEY_PICTURE_PROFILE_ID parameter to String!");
+                    } catch (Exception e) {
+                        Log.e(TAG, Log.getStackTraceString(e));
+                        throw new IllegalArgumentException("Unexpected exception when casting the "
+                                + "KEY_PICTURE_PROFILE_ID parameter!");
+                    }
+                    if (pictureProfileId == null) {
+                        throw new IllegalArgumentException(
+                                "KEY_PICTURE_PROFILE_ID parameter is null!");
+                    }
+                    if (!pictureProfileId.isEmpty()) {
+                        keys[i] = MediaFormat.KEY_PICTURE_PROFILE_ID;
+                        values[i] = pictureProfileId;
+                    }
                 } else {
                     keys[i] = entry.getKey();
                     values[i] = entry.getValue();
@@ -3103,6 +3153,7 @@ final public class MediaCodec {
             int index,
             int offset, int size, long presentationTimeUs, int flags)
         throws CryptoException {
+        Trace.traceBegin(Trace.TRACE_TAG_VIDEO, "MediaCodec::queueInputBuffer#java");
         if ((flags & BUFFER_FLAG_DECODE_ONLY) != 0
                 && (flags & BUFFER_FLAG_END_OF_STREAM) != 0) {
             throw new InvalidBufferFlagsException(EOS_AND_DECODE_ONLY_ERROR_MESSAGE);
@@ -3122,6 +3173,8 @@ final public class MediaCodec {
         } catch (CryptoException | IllegalStateException e) {
             revalidateByteBuffer(mCachedInputBuffers, index, true /* input */);
             throw e;
+        } finally {
+            Trace.traceEnd(Trace.TRACE_TAG_VIDEO);
         }
     }
 
@@ -3163,6 +3216,7 @@ final public class MediaCodec {
     public final void queueInputBuffers(
             int index,
             @NonNull ArrayDeque<BufferInfo> bufferInfos) {
+        Trace.traceBegin(Trace.TRACE_TAG_VIDEO, "MediaCodec::queueInputBuffers#java");
         synchronized(mBufferLock) {
             if (mBufferMode == BUFFER_MODE_BLOCK) {
                 throw new IncompatibleWithBlockModelException("queueInputBuffers() "
@@ -3178,6 +3232,8 @@ final public class MediaCodec {
         } catch (CryptoException | IllegalStateException | IllegalArgumentException e) {
             revalidateByteBuffer(mCachedInputBuffers, index, true /* input */);
             throw e;
+        } finally {
+            Trace.traceEnd(Trace.TRACE_TAG_VIDEO);
         }
     }
 
@@ -3438,6 +3494,7 @@ final public class MediaCodec {
             @NonNull CryptoInfo info,
             long presentationTimeUs,
             int flags) throws CryptoException {
+        Trace.traceBegin(Trace.TRACE_TAG_VIDEO, "MediaCodec::queueSecureInputBuffer#java");
         if ((flags & BUFFER_FLAG_DECODE_ONLY) != 0
                 && (flags & BUFFER_FLAG_END_OF_STREAM) != 0) {
             throw new InvalidBufferFlagsException(EOS_AND_DECODE_ONLY_ERROR_MESSAGE);
@@ -3457,6 +3514,8 @@ final public class MediaCodec {
         } catch (CryptoException | IllegalStateException e) {
             revalidateByteBuffer(mCachedInputBuffers, index, true /* input */);
             throw e;
+        } finally {
+            Trace.traceEnd(Trace.TRACE_TAG_VIDEO);
         }
     }
 
@@ -3487,6 +3546,7 @@ final public class MediaCodec {
             int index,
             @NonNull ArrayDeque<BufferInfo> bufferInfos,
             @NonNull ArrayDeque<CryptoInfo> cryptoInfos) {
+        Trace.traceBegin(Trace.TRACE_TAG_VIDEO, "MediaCodec::queueSecureInputBuffers#java");
         synchronized(mBufferLock) {
             if (mBufferMode == BUFFER_MODE_BLOCK) {
                 throw new IncompatibleWithBlockModelException("queueSecureInputBuffers() "
@@ -3502,6 +3562,8 @@ final public class MediaCodec {
         } catch (CryptoException | IllegalStateException | IllegalArgumentException e) {
             revalidateByteBuffer(mCachedInputBuffers, index, true /* input */);
             throw e;
+        } finally {
+            Trace.traceEnd(Trace.TRACE_TAG_VIDEO);
         }
     }
 
@@ -3529,6 +3591,7 @@ final public class MediaCodec {
      * @throws MediaCodec.CodecException upon codec error.
      */
     public final int dequeueInputBuffer(long timeoutUs) {
+        Trace.traceBegin(Trace.TRACE_TAG_VIDEO, "MediaCodec::dequeueInputBuffer#java");
         synchronized (mBufferLock) {
             if (mBufferMode == BUFFER_MODE_BLOCK) {
                 throw new IncompatibleWithBlockModelException("dequeueInputBuffer() "
@@ -3542,6 +3605,7 @@ final public class MediaCodec {
                 validateInputByteBufferLocked(mCachedInputBuffers, res);
             }
         }
+        Trace.traceEnd(Trace.TRACE_TAG_VIDEO);
         return res;
     }
 
@@ -3869,7 +3933,9 @@ final public class MediaCodec {
 
         /**
          * Set a hardware graphic buffer to this queue request. Exactly one buffer must
-         * be set for a queue request before calling {@link #queue}.
+         * be set for a queue request before calling {@link #queue}. Ownership of the
+         * hardware buffer is not transferred to this queue request, nor will it be transferred
+         * to the codec once {@link #queue} is called.
          * <p>
          * Note: buffers should have format {@link HardwareBuffer#YCBCR_420_888},
          * a single layer, and an appropriate usage ({@link HardwareBuffer#USAGE_CPU_READ_OFTEN}
@@ -4039,6 +4105,7 @@ final public class MediaCodec {
          * Finish building a queue request and queue the buffers with tunings.
          */
         public void queue() {
+            Trace.traceBegin(Trace.TRACE_TAG_VIDEO, "MediaCodec::queueRequest-queue#java");
             if (!isAccessible()) {
                 throw new IllegalStateException("The request is stale");
             }
@@ -4067,6 +4134,7 @@ final public class MediaCodec {
                         mTuningKeys, mTuningValues);
             }
             clear();
+            Trace.traceEnd(Trace.TRACE_TAG_VIDEO);
         }
 
         @NonNull QueueRequest clear() {
@@ -5370,6 +5438,9 @@ final public class MediaCodec {
      * @param params The bundle of parameters to set.
      * @throws IllegalStateException if in the Released state.
      */
+
+    private static final String PARAMETER_KEY_PICTURE_PROFILE_HANDLE = "picture-profile-handle";
+
     public final void setParameters(@Nullable Bundle params) {
         if (params == null) {
             return;
@@ -5383,19 +5454,61 @@ final public class MediaCodec {
             if (key.equals(MediaFormat.KEY_AUDIO_SESSION_ID)) {
                 int sessionId = 0;
                 try {
-                    sessionId = (Integer)params.get(key);
+                    sessionId = (Integer) params.get(key);
                 } catch (Exception e) {
                     throw new IllegalArgumentException("Wrong Session ID Parameter!");
                 }
                 keys[i] = "audio-hw-sync";
                 values[i] = AudioSystem.getAudioHwSyncForSession(sessionId);
+            } else if (applyPictureProfiles() && mediaQualityFw()
+                    && key.equals(MediaFormat.KEY_PICTURE_PROFILE_INSTANCE)) {
+                PictureProfile pictureProfile = null;
+                try {
+                    pictureProfile = (PictureProfile) params.get(key);
+                } catch (ClassCastException e) {
+                    throw new IllegalArgumentException(
+                            "Cannot cast the instance parameter to PictureProfile!");
+                } catch (Exception e) {
+                    Log.e(TAG, Log.getStackTraceString(e));
+                    throw new IllegalArgumentException("Unexpected exception when casting the "
+                                                       + "instance parameter to PictureProfile!");
+                }
+                if (pictureProfile == null) {
+                    throw new IllegalArgumentException(
+                            "Picture profile instance parameter is null!");
+                }
+                PictureProfileHandle handle = pictureProfile.getHandle();
+                if (handle != PictureProfileHandle.NONE) {
+                    keys[i] = PARAMETER_KEY_PICTURE_PROFILE_HANDLE;
+                    values[i] = Long.valueOf(handle.getId());
+                }
+            } else if (applyPictureProfiles() && mediaQualityFw()
+                    && key.equals(MediaFormat.KEY_PICTURE_PROFILE_ID)) {
+                String pictureProfileId = null;
+                try {
+                    pictureProfileId = (String) params.get(key);
+                } catch (ClassCastException e) {
+                    throw new IllegalArgumentException(
+                            "Cannot cast the KEY_PICTURE_PROFILE_ID parameter to String!");
+                } catch (Exception e) {
+                    Log.e(TAG, Log.getStackTraceString(e));
+                    throw new IllegalArgumentException("Unexpected exception when casting the "
+                            + "KEY_PICTURE_PROFILE_ID parameter!");
+                }
+                if (pictureProfileId == null) {
+                    throw new IllegalArgumentException("KEY_PICTURE_PROFILE_ID parameter is null!");
+                }
+                if (!pictureProfileId.isEmpty()) {
+                    keys[i] = MediaFormat.KEY_PICTURE_PROFILE_ID;
+                    values[i] = pictureProfileId;
+                }
             } else {
                 keys[i] = key;
                 Object value = params.get(key);
 
                 // Bundle's byte array is a byte[], JNI layer only takes ByteBuffer
                 if (value instanceof byte[]) {
-                    values[i] = ByteBuffer.wrap((byte[])value);
+                    values[i] = ByteBuffer.wrap((byte[]) value);
                 } else {
                     values[i] = value;
                 }
@@ -5407,10 +5520,9 @@ final public class MediaCodec {
     }
 
     private void logAndRun(String message, Runnable r) {
-        final String TAG = "MediaCodec";
-        android.util.Log.d(TAG, "enter: " + message);
+        Log.d(TAG, "enter: " + message);
         r.run();
-        android.util.Log.d(TAG, "exit : " + message);
+        Log.d(TAG, "exit : " + message);
     }
 
     /**
@@ -5866,19 +5978,31 @@ final public class MediaCodec {
                 @NonNull MediaCodec codec, @NonNull MediaFormat format);
 
         /**
-         * Called when the metrics for this codec have been flushed due to the
-         * start of a new subsession.
+         * Called when the metrics for this codec have been flushed "mid-stream"
+         * due to the start of a new subsession during execution.
          * <p>
-         * This can happen when the codec is reconfigured after stop(), or
-         * mid-stream e.g. if the video size changes. When this happens, the
-         * metrics for the previous subsession are flushed, and
-         * {@link MediaCodec#getMetrics} will return the metrics for the
-         * new subsession. This happens just before the {@link Callback#onOutputFormatChanged}
+         * A new codec subsession normally starts when the codec is reconfigured
+         * after stop(), but it can also happen mid-stream e.g. if the video size
+         * changes. When this happens, the metrics for the previous subsession
+         * are flushed, and {@link MediaCodec#getMetrics} will return the metrics
+         * for the new subsession.
+         * <p>
+         * For subsessions that begin due to a reconfiguration, the metrics for
+         * the prior subsession can be retrieved via {@link MediaCodec#getMetrics}
+         * prior to calling {@link #configure}.
+         * <p>
+         * When a new subsession begins "mid-stream", the metrics for the prior
+         * subsession are flushed just before the {@link Callback#onOutputFormatChanged}
          * event, so this <b>optional</b> callback is provided to be able to
          * capture the final metrics for the previous subsession.
          *
          * @param codec The MediaCodec object.
-         * @param metrics The flushed metrics for this codec.
+         * @param metrics The flushed metrics for this codec. This is a
+         *                {@link PersistableBundle} containing the set of
+         *                attributes and values available for the media being
+         *                handled by this instance of MediaCodec. The attributes
+         *                are described in {@link MetricsConstants}. Additional
+         *                vendor-specific fields may also be present.
          */
         @FlaggedApi(FLAG_SUBSESSION_METRICS)
         public void onMetricsFlushed(
@@ -6158,11 +6282,14 @@ final public class MediaCodec {
                     buffer.limit(buffer.position() + Utils.divUp(bitDepth, 8)
                             + (mHeight / vert - 1) * rowInc + (mWidth / horiz - 1) * colInc);
                     mPlanes[ix] = new MediaPlane(buffer.slice(), rowInc, colInc);
-                    if ((mFormat == ImageFormat.YUV_420_888 || mFormat == ImageFormat.YCBCR_P010)
+                    if ((mFormat == ImageFormat.YUV_420_888 || mFormat == ImageFormat.YCBCR_P010
+                                || mFormat == ImageFormat.YCBCR_P210)
                             && ix == 1) {
                         cbPlaneOffset = planeOffset;
                     } else if ((mFormat == ImageFormat.YUV_420_888
-                            || mFormat == ImageFormat.YCBCR_P010) && ix == 2) {
+                                       || mFormat == ImageFormat.YCBCR_P010
+                                       || mFormat == ImageFormat.YCBCR_P210)
+                            && ix == 2) {
                         crPlaneOffset = planeOffset;
                     }
                 }
@@ -6172,7 +6299,7 @@ final public class MediaCodec {
             }
 
             // Validate chroma semiplanerness.
-            if (mFormat == ImageFormat.YCBCR_P010) {
+            if (mFormat == ImageFormat.YCBCR_P010 || mFormat == ImageFormat.YCBCR_P210) {
                 if (crPlaneOffset != cbPlaneOffset + planeOffsetInc) {
                     throw new UnsupportedOperationException("Invalid plane offsets"
                     + " cbPlaneOffset: " + cbPlaneOffset + " crPlaneOffset: " + crPlaneOffset);

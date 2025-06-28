@@ -47,7 +47,7 @@ import com.android.systemui.navigationbar.views.buttons.ButtonDispatcher;
 import com.android.systemui.navigationbar.views.buttons.KeyButtonView;
 import com.android.systemui.navigationbar.views.buttons.ReverseLinearLayout;
 import com.android.systemui.navigationbar.views.buttons.ReverseLinearLayout.ReverseRelativeLayout;
-import com.android.systemui.recents.OverviewProxyService;
+import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.system.QuickStepContract;
 import com.android.systemui.tuner.TunerService;
@@ -131,7 +131,7 @@ public class NavigationBarInflaterView extends FrameLayout
     private boolean mIsVertical;
     private boolean mAlternativeOrder;
 
-    private OverviewProxyService mOverviewProxyService;
+    private LauncherProxyService mLauncherProxyService;
     private int mNavBarMode = NAV_BAR_MODE_3BUTTON;
 
     private boolean mIsHintEnabled;
@@ -139,7 +139,7 @@ public class NavigationBarInflaterView extends FrameLayout
     public NavigationBarInflaterView(Context context, AttributeSet attrs) {
         super(context, attrs);
         createInflaters();
-        mOverviewProxyService = Dependency.get(OverviewProxyService.class);
+        mLauncherProxyService = Dependency.get(LauncherProxyService.class);
         mListener = new Listener(this);
         mNavBarMode = Dependency.get(NavigationModeController.class).addListener(mListener);
     }
@@ -175,7 +175,7 @@ public class NavigationBarInflaterView extends FrameLayout
     protected String getDefaultLayout() {
         final int defaultResource = QuickStepContract.isGesturalMode(mNavBarMode)
                 ? R.string.config_navBarLayoutHandle
-                : mOverviewProxyService.shouldShowSwipeUpUI()
+                : mLauncherProxyService.shouldShowSwipeUpUI()
                         ? R.string.config_navBarLayoutQuickstep
                         : R.string.config_navBarLayout;
         if (!mIsHintEnabled && defaultResource == R.string.config_navBarLayoutHandle) {

@@ -67,6 +67,7 @@ static struct typedvalue_offsets_t {
   jfieldID mResourceId;
   jfieldID mChangingConfigurations;
   jfieldID mDensity;
+  jfieldID mUsesFeatureFlags;
 } gTypedValueOffsets;
 
 // This is also used by asset_manager.cpp.
@@ -137,6 +138,8 @@ static jint CopyValue(JNIEnv* env, const AssetManager2::SelectedValue& value,
   env->SetIntField(out_typed_value, gTypedValueOffsets.mResourceId, value.resid);
   env->SetIntField(out_typed_value, gTypedValueOffsets.mChangingConfigurations, value.flags);
   env->SetIntField(out_typed_value, gTypedValueOffsets.mDensity, value.config.density);
+  env->SetBooleanField(out_typed_value, gTypedValueOffsets.mUsesFeatureFlags,
+                       value.entry_flags & ResTable_entry::FLAG_USES_FEATURE_FLAGS);
   return static_cast<jint>(ApkAssetsCookieToJavaCookie(value.cookie));
 }
 
@@ -198,7 +201,7 @@ static jobject NativeGetOverlayableMap(JNIEnv* env, jclass /*clazz*/, jlong ptr,
   auto assetmanager = LockAndStartAssetManager(ptr);
   const ScopedUtfChars package_name_utf8(env, package_name);
   CHECK(package_name_utf8.c_str() != nullptr);
-  const std::string std_package_name(package_name_utf8.c_str());
+  const std::string_view std_package_name(package_name_utf8.c_str());
   const std::unordered_map<std::string, std::string>* map = nullptr;
 
   assetmanager->ForEachPackage([&](const std::string& this_package_name, uint8_t package_id) {
@@ -420,6 +423,15 @@ static void NativeSetConfiguration(JNIEnv* env, jclass /*clazz*/, jlong ptr, jin
   auto assetmanager = LockAndStartAssetManager(ptr);
   assetmanager->SetConfigurations(std::move(configs), force_refresh != JNI_FALSE);
   assetmanager->SetDefaultLocale(default_locale_opt);
+}
+
+static void NativeSetOverlayConstraints(JNIEnv* /*env*/, jclass /*clazz*/, jlong ptr,
+                                        jint displayId, jint deviceId) {
+    ATRACE_NAME("AssetManager::SetDisplayIdAndDeviceId");
+
+    auto assetmanager = LockAndStartAssetManager(ptr);
+    assetmanager->SetOverlayConstraints(static_cast<int32_t>(displayId),
+                                        static_cast<int32_t>(deviceId));
 }
 
 static jobject NativeGetAssignedPackageIdentifiers(JNIEnv* env, jclass /*clazz*/, jlong ptr,
@@ -1065,8 +1077,8 @@ static jstring NativeGetLastResourceResolution(JNIEnv* env,
 static jobjectArray NativeGetLocales(JNIEnv* env, jclass /*class*/, jlong ptr,
                                      jboolean exclude_system) {
   auto assetmanager = LockAndStartAssetManager(ptr);
-  std::set<std::string> locales =
-      assetmanager->GetResourceLocales(exclude_system, true /*merge_equivalent_languages*/);
+  auto locales =
+          assetmanager->GetResourceLocales(exclude_system, true /*merge_equivalent_languages*/);
 
   jobjectArray array = env->NewObjectArray(locales.size(), g_stringClass, nullptr);
   if (array == nullptr) {
@@ -1552,6 +1564,7 @@ static const JNINativeMethod gAssetManagerMethods[] = {
         {"nativeSetApkAssets", "(J[Landroid/content/res/ApkAssets;ZZ)V", (void*)NativeSetApkAssets},
         {"nativeSetConfiguration", "(JIILjava/lang/String;[Ljava/lang/String;IIIIIIIIIIIIIIIIZ)V",
          (void*)NativeSetConfiguration},
+        {"nativeSetOverlayConstraints", "(JII)V", (void*)NativeSetOverlayConstraints},
         {"nativeGetAssignedPackageIdentifiers", "(JZZ)Landroid/util/SparseArray;",
          (void*)NativeGetAssignedPackageIdentifiers},
 
@@ -1654,6 +1667,7 @@ int register_android_content_AssetManager(JNIEnv* env) {
   gTypedValueOffsets.mChangingConfigurations =
       GetFieldIDOrDie(env, typedValue, "changingConfigurations", "I");
   gTypedValueOffsets.mDensity = GetFieldIDOrDie(env, typedValue, "density", "I");
+  gTypedValueOffsets.mUsesFeatureFlags = GetFieldIDOrDie(env, typedValue, "usesFeatureFlags", "Z");
 
   jclass assetManager = FindClassOrDie(env, "android/content/res/AssetManager");
   gAssetManagerOffsets.mObject = GetFieldIDOrDie(env, assetManager, "mObject", "J");

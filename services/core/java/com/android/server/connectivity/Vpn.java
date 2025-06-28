@@ -1113,7 +1113,11 @@ public class Vpn {
             }
             // Remove always-on VPN if it's not supported.
             if (!isAlwaysOnPackageSupported(alwaysOnPackage)) {
-                setAlwaysOnPackage(null, false, null);
+                // Do not remove the always-on setting due to the restricted ability in safe mode.
+                // The always-on VPN can then start after the device reboots to normal mode.
+                if (!mContext.getPackageManager().isSafeMode()) {
+                    setAlwaysOnPackage(null, false, null);
+                }
                 return false;
             }
             // Skip if the service is already established. This isn't bulletproof: it's not bound
@@ -1960,6 +1964,10 @@ public class Vpn {
     public void onUserAdded(int userId) {
         // If the user is restricted tie them to the parent user's VPN
         UserInfo user = mUserManager.getUserInfo(userId);
+        if (user == null) {
+            Log.e(TAG, "Can not retrieve UserInfo for userId=" + userId);
+            return;
+        }
         if (user.isRestricted() && user.restrictedProfileParentId == mUserId) {
             synchronized(Vpn.this) {
                 final Set<Range<Integer>> existingRanges = mNetworkCapabilities.getUids();
@@ -1989,6 +1997,14 @@ public class Vpn {
     public void onUserRemoved(int userId) {
         // clean up if restricted
         UserInfo user = mUserManager.getUserInfo(userId);
+        // TODO: Retrieving UserInfo upon receiving the USER_REMOVED intent is not guaranteed.
+        //  This could prevent the removal of associated ranges. To ensure proper range removal,
+        //  store the user info when adding ranges. This allows using the user ID in the
+        //  USER_REMOVED intent to handle the removal process.
+        if (user == null) {
+            Log.e(TAG, "Can not retrieve UserInfo for userId=" + userId);
+            return;
+        }
         if (user.isRestricted() && user.restrictedProfileParentId == mUserId) {
             synchronized(Vpn.this) {
                 final Set<Range<Integer>> existingRanges = mNetworkCapabilities.getUids();

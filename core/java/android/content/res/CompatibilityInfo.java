@@ -41,8 +41,6 @@ import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 import android.util.Log;
 
-import com.android.aconfig.annotations.VisibleForTesting;
-
 /**
  * CompatibilityInfo class keeps the information about the screen compatibility mode that the
  * application is running under.
@@ -791,7 +789,6 @@ public class CompatibilityInfo implements Parcelable {
     }
 
     /** @see #sOverrideDisplayRotation */
-    @VisibleForTesting
     public static int getOverrideDisplayRotation() {
         return sOverrideDisplayRotation;
     }

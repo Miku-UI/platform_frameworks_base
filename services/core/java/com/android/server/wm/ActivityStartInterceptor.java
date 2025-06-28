@@ -16,6 +16,7 @@
 
 package com.android.server.wm;
 
+import static android.Manifest.permission.MANAGE_ACTIVITY_TASKS;
 import static android.app.ActivityManager.INTENT_SENDER_ACTIVITY;
 import static android.app.ActivityOptions.ANIM_OPEN_CROSS_PROFILE_APPS;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED;
@@ -35,6 +36,7 @@ import static android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_TASK_ON_HOME;
 import static android.content.pm.ApplicationInfo.FLAG_SUSPENDED;
+import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
 
@@ -270,6 +272,12 @@ class ActivityStartInterceptor {
             mActivityOptions = interceptResult.getActivityOptions();
             mCallingPid = mRealCallingPid;
             mCallingUid = mRealCallingUid;
+            // When an activity launch is intercepted, Intent#prepareToLeaveProcess is not called
+            // since the interception happens in the system_server. So if any activity is calling
+            // a trampoline activity, the keys do not get collected. Since all the interceptors
+            // are present in the system_server, add the creator token before launching the
+            // intercepted intent.
+            mService.mAmInternal.addCreatorToken(mIntent, mCallingPackage);
             if (interceptResult.isActivityResolved()) {
                 return true;
             }
@@ -501,13 +509,21 @@ class ActivityStartInterceptor {
         }
 
         boolean intercepted = false;
-       if (!ACTION_MAIN.equals(mIntent.getAction()) || (!mIntent.hasCategory(CATEGORY_HOME)
+        if (!ACTION_MAIN.equals(mIntent.getAction()) || (!mIntent.hasCategory(CATEGORY_HOME)
                 && !mIntent.hasCategory(CATEGORY_SECONDARY_HOME))) {
             // not a home intent
             return false;
         }
 
         if (mComponentSpecified) {
+            Slog.w(TAG, "Starting home with component specified, uid=" + mCallingUid);
+            if (mService.isCallerRecents(mCallingUid)
+                    || ActivityTaskManagerService.checkPermission(MANAGE_ACTIVITY_TASKS,
+                    mCallingPid, mCallingUid) == PERMISSION_GRANTED) {
+                // Allow home component specified from trusted callers.
+                return false;
+            }
+
             final ComponentName homeComponent = mIntent.getComponent();
             final Intent homeIntent = mService.getHomeIntent();
             final ActivityInfo aInfo = mService.mRootWindowContainer.resolveHomeActivity(

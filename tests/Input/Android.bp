@@ -15,13 +15,11 @@ android_test {
         "modules-utils-testable-device-config-defaults",
     ],
     srcs: [
+        "src/**/*.aidl",
         "src/**/*.java",
         "src/**/*.kt",
     ],
     asset_dirs: ["assets"],
-    kotlincflags: [
-        "-Werror",
-    ],
     platform_apis: true,
     certificate: "platform",
     static_libs: [

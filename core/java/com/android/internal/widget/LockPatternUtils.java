@@ -22,8 +22,9 @@ import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_NUMERIC;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_NUMERIC_COMPLEX;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_SOMETHING;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_UNSPECIFIED;
-import static android.security.Flags.reportPrimaryAuthAttempts;
 import static android.security.Flags.shouldTrustManagerListenForPrimaryAuth;
+
+import static com.android.internal.widget.flags.Flags.hideLastCharWithPhysicalInput;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -40,8 +41,8 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
+import android.hardware.input.InputManagerGlobal;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -59,8 +60,10 @@ import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 import android.util.SparseLongArray;
+import android.view.InputDevice;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.util.ArrayUtils;
 import com.android.server.LocalServices;
 
 import com.google.android.collect.Lists;
@@ -71,8 +74,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -235,8 +238,6 @@ public class LockPatternUtils {
     private final SparseLongArray mLockoutDeadlines = new SparseLongArray();
     private Boolean mHasSecureLockScreen;
 
-    private HashMap<UserHandle, UserManager> mUserManagerCache = new HashMap<>();
-
     /**
      * Use {@link TrustManager#isTrustUsuallyManaged(int)}.
      *
@@ -288,6 +289,56 @@ public class LockPatternUtils {
 
     }
 
+    /**
+     * This exists temporarily due to trunk-stable policies.
+     * Please use ArrayUtils directly if you can.
+     */
+    public static byte[] newNonMovableByteArray(int length) {
+        if (!android.security.Flags.secureArrayZeroization()) {
+            return new byte[length];
+        }
+        return ArrayUtils.newNonMovableByteArray(length);
+    }
+
+    /**
+     * This exists temporarily due to trunk-stable policies.
+     * Please use ArrayUtils directly if you can.
+     */
+    public static char[] newNonMovableCharArray(int length) {
+        if (!android.security.Flags.secureArrayZeroization()) {
+            return new char[length];
+        }
+        return ArrayUtils.newNonMovableCharArray(length);
+    }
+
+    /**
+     * This exists temporarily due to trunk-stable policies.
+     * Please use ArrayUtils directly if you can.
+     */
+    public static void zeroize(byte[] array) {
+        if (!android.security.Flags.secureArrayZeroization()) {
+            if (array != null) {
+                Arrays.fill(array, (byte) 0);
+            }
+            return;
+        }
+        ArrayUtils.zeroize(array);
+    }
+
+    /**
+     * This exists temporarily due to trunk-stable policies.
+     * Please use ArrayUtils directly if you can.
+     */
+    public static void zeroize(char[] array) {
+        if (!android.security.Flags.secureArrayZeroization()) {
+            if (array != null) {
+                Arrays.fill(array, (char) 0);
+            }
+            return;
+        }
+        ArrayUtils.zeroize(array);
+    }
+
     @UnsupportedAppUsage
     public DevicePolicyManager getDevicePolicyManager() {
         if (mDevicePolicyManager == null) {
@@ -306,22 +357,6 @@ public class LockPatternUtils {
             mUserManager = UserManager.get(mContext);
         }
         return mUserManager;
-    }
-
-    private UserManager getUserManager(int userId) {
-        UserHandle userHandle = UserHandle.of(userId);
-        if (mUserManagerCache.containsKey(userHandle)) {
-            return mUserManagerCache.get(userHandle);
-        }
-
-        try {
-            Context userContext = mContext.createPackageContextAsUser("system", 0, userHandle);
-            UserManager userManager = userContext.getSystemService(UserManager.class);
-            mUserManagerCache.put(userHandle, userManager);
-            return userManager;
-        } catch (PackageManager.NameNotFoundException e) {
-            throw new RuntimeException("Failed to create context for user " + userHandle, e);
-        }
     }
 
     private TrustManager getTrustManager() {
@@ -416,7 +451,7 @@ public class LockPatternUtils {
             return;
         }
         getDevicePolicyManager().reportFailedPasswordAttempt(userId);
-        if (!reportPrimaryAuthAttempts() || !shouldTrustManagerListenForPrimaryAuth()) {
+        if (!shouldTrustManagerListenForPrimaryAuth()) {
             getTrustManager().reportUnlockAttempt(/* authenticated= */ false, userId);
         }
     }
@@ -427,7 +462,7 @@ public class LockPatternUtils {
             return;
         }
         getDevicePolicyManager().reportSuccessfulPasswordAttempt(userId);
-        if (!reportPrimaryAuthAttempts() || !shouldTrustManagerListenForPrimaryAuth()) {
+        if (!shouldTrustManagerListenForPrimaryAuth()) {
             getTrustManager().reportUnlockAttempt(/* authenticated= */ true, userId);
         }
     }
@@ -911,7 +946,7 @@ public class LockPatternUtils {
      */
     public void setSeparateProfileChallengeEnabled(int userHandle, boolean enabled,
             LockscreenCredential profilePassword) {
-        if (!isCredentialSharableWithParent(userHandle)) {
+        if (!isCredentialShareableWithParent(userHandle)) {
             return;
         }
         try {
@@ -930,7 +965,7 @@ public class LockPatternUtils {
      * credential is not shareable with its parent, or a non-profile user.
      */
     public boolean isSeparateProfileChallengeEnabled(int userHandle) {
-        return isCredentialSharableWithParent(userHandle) && hasSeparateChallenge(userHandle);
+        return isCredentialShareableWithParent(userHandle) && hasSeparateChallenge(userHandle);
     }
 
     /**
@@ -940,7 +975,7 @@ public class LockPatternUtils {
      * credential is not shareable with its parent, or a non-profile user.
      */
     public boolean isProfileWithUnifiedChallenge(int userHandle) {
-        return isCredentialSharableWithParent(userHandle) && !hasSeparateChallenge(userHandle);
+        return isCredentialShareableWithParent(userHandle) && !hasSeparateChallenge(userHandle);
     }
 
     /**
@@ -965,8 +1000,13 @@ public class LockPatternUtils {
         return info != null && info.isManagedProfile();
     }
 
-    private boolean isCredentialSharableWithParent(int userHandle) {
-        return getUserManager(userHandle).isCredentialSharableWithParent();
+    private boolean isCredentialShareableWithParent(int userHandle) {
+        try {
+            return getUserManager().getUserProperties(UserHandle.of(userHandle))
+                    .isCredentialShareableWithParent();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     /**
@@ -999,7 +1039,7 @@ public class LockPatternUtils {
         }
         final int patternSize = pattern.size();
 
-        byte[] res = new byte[patternSize];
+        byte[] res = newNonMovableByteArray(patternSize);
         for (int i = 0; i < patternSize; i++) {
             LockPatternView.Cell cell = pattern.get(i);
             res[i] = (byte) (cell.getRow() * 3 + cell.getColumn() + '1');
@@ -1097,12 +1137,20 @@ public class LockPatternUtils {
         return type == CREDENTIAL_TYPE_PATTERN;
     }
 
+    private boolean hasActivePointerDeviceAttached() {
+        return !getEnabledNonTouchInputDevices(InputDevice.SOURCE_CLASS_POINTER).isEmpty();
+    }
+
     /**
      * @return Whether the visible pattern is enabled.
      */
     @UnsupportedAppUsage
     public boolean isVisiblePatternEnabled(int userId) {
-        return getBoolean(Settings.Secure.LOCK_PATTERN_VISIBLE, true, userId);
+        boolean defaultValue = true;
+        if (hideLastCharWithPhysicalInput()) {
+            defaultValue = !hasActivePointerDeviceAttached();
+        }
+        return getBoolean(Settings.Secure.LOCK_PATTERN_VISIBLE, defaultValue, userId);
     }
 
     /**
@@ -1116,11 +1164,39 @@ public class LockPatternUtils {
         return getString(Settings.Secure.LOCK_PATTERN_VISIBLE, userId) != null;
     }
 
+    private List<InputDevice> getEnabledNonTouchInputDevices(int source) {
+        final InputManagerGlobal inputManager = InputManagerGlobal.getInstance();
+        final int[] inputIds = inputManager.getInputDeviceIds();
+        List<InputDevice> matchingDevices = new ArrayList<InputDevice>();
+        for (final int deviceId : inputIds) {
+            final InputDevice inputDevice = inputManager.getInputDevice(deviceId);
+            if (!inputDevice.isEnabled()) continue;
+            if (inputDevice.supportsSource(InputDevice.SOURCE_TOUCHSCREEN)) continue;
+            if (inputDevice.isVirtual()) continue;
+            if (!inputDevice.supportsSource(source)) continue;
+            matchingDevices.add(inputDevice);
+        }
+        return matchingDevices;
+    }
+
+    private boolean hasPhysicalKeyboardActive() {
+        final List<InputDevice> keyboards =
+                getEnabledNonTouchInputDevices(InputDevice.SOURCE_KEYBOARD);
+        for (final InputDevice keyboard : keyboards) {
+            if (keyboard.isFullKeyboard()) return true;
+        }
+        return false;
+    }
+
     /**
      * @return Whether enhanced pin privacy is enabled.
      */
     public boolean isPinEnhancedPrivacyEnabled(int userId) {
-        return getBoolean(LOCK_PIN_ENHANCED_PRIVACY, false, userId);
+        boolean defaultValue = false;
+        if (hideLastCharWithPhysicalInput()) {
+            defaultValue = hasPhysicalKeyboardActive();
+        }
+        return getBoolean(LOCK_PIN_ENHANCED_PRIVACY, defaultValue, userId);
     }
 
     /**
@@ -1326,7 +1402,7 @@ public class LockPatternUtils {
         try {
             getLockSettings().registerStrongAuthTracker(strongAuthTracker.getStub());
         } catch (RemoteException e) {
-            throw new RuntimeException("Could not register StrongAuthTracker");
+            e.rethrowFromSystemServer();
         }
     }
 

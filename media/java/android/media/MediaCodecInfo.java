@@ -219,13 +219,14 @@ public final class MediaCodecInfo {
     private static final int DEFAULT_MAX_SUPPORTED_INSTANCES = 32;
     private static final int MAX_SUPPORTED_INSTANCES_LIMIT = 256;
 
-    private static final class LazyHolder {
-        private static final Range<Integer> SIZE_RANGE = Process.is64Bit()
-                ? Range.create(1, 32768)
-                : Range.create(1, MediaProperties.resolution_limit_32bit().orElse(4096));
-    }
-    private static Range<Integer> getSizeRange() {
-        return LazyHolder.SIZE_RANGE;
+    private static Range<Integer> SIZE_RANGE;
+    private static synchronized Range<Integer> getSizeRange() {
+        if (SIZE_RANGE == null) {
+            SIZE_RANGE = Process.is64Bit()
+                    ? Range.create(1, 32768)
+                    : Range.create(1, MediaProperties.resolution_limit_32bit().orElse(4096));
+        }
+        return SIZE_RANGE;
     }
 
     // found stuff that is not supported by framework (=> this should not happen)
@@ -908,13 +909,13 @@ public final class MediaCodecInfo {
         /** @hide */
         public String[] validFeatures() {
             Feature[] features = getValidFeatures();
-            String[] res = new String[features.length];
-            for (int i = 0; i < res.length; i++) {
+            ArrayList<String> res = new ArrayList();
+            for (int i = 0; i < features.length; i++) {
                 if (!features[i].mInternal) {
-                    res[i] = features[i].mName;
+                    res.add(features[i].mName);
                 }
             }
-            return res;
+            return res.toArray(new String[0]);
         }
 
         private Feature[] getValidFeatures() {
@@ -1223,8 +1224,14 @@ public final class MediaCodecInfo {
         private static final String TAG = "CodecCapabilities";
 
         // NEW-STYLE CAPABILITIES
+        // Capabilities for an audio codec.
+        @Nullable
         private AudioCapabilities mAudioCaps;
+        // Capabilities for a video codec.
+        @Nullable
         private VideoCapabilities mVideoCaps;
+        // Capabilities specific to an encoder (vs. a decoder).
+        @Nullable
         private EncoderCapabilities mEncoderCaps;
         private MediaFormat mDefaultFormat;
 
@@ -1262,6 +1269,7 @@ public final class MediaCodecInfo {
         /**
          * Returns the audio capabilities or {@code null} if this is not an audio codec.
          */
+        @Nullable
         public AudioCapabilities getAudioCapabilities() {
             return mAudioCaps;
         }
@@ -1273,6 +1281,7 @@ public final class MediaCodecInfo {
         /**
          * Returns the encoding capabilities or {@code null} if this is not an encoder.
          */
+        @Nullable
         public EncoderCapabilities getEncoderCapabilities() {
             return mEncoderCaps;
         }
@@ -1284,6 +1293,7 @@ public final class MediaCodecInfo {
         /**
          * Returns the video capabilities or {@code null} if this is not a video codec.
          */
+        @Nullable
         public VideoCapabilities getVideoCapabilities() {
             return mVideoCaps;
         }
@@ -3827,6 +3837,151 @@ public final class MediaCodecInfo {
                         maxBlocks, maxBlocksPerSecond,
                         blockSize, blockSize,
                         1 /* widthAlignment */, 1 /* heightAlignment */);
+            } else if (GetFlag(() -> android.media.codec.Flags.apvSupport())
+                        && mime.equalsIgnoreCase(MediaFormat.MIMETYPE_VIDEO_APV)) {
+                maxBlocksPerSecond = 11880;
+                maxBps = 7000000;
+
+                // Sample rate, and Bit rate for APV Codec,
+                // corresponding to the definitions in
+                // "10.1.4. Levels and bands"
+                // found at https://www.ietf.org/archive/id/draft-lim-apv-03.html
+                for (CodecProfileLevel profileLevel: profileLevels) {
+                    long SR = 0; // luma sample rate
+                    int BR = 0;  // bit rate bps
+                    switch (profileLevel.level) {
+                        case CodecProfileLevel.APVLevel1Band0:
+                            SR =      3041280; BR =    7000000; break;
+                        case CodecProfileLevel.APVLevel1Band1:
+                            SR =      3041280; BR =   11000000; break;
+                        case CodecProfileLevel.APVLevel1Band2:
+                            SR =      3041280; BR =   14000000; break;
+                        case CodecProfileLevel.APVLevel1Band3:
+                            SR =      3041280; BR =   21000000; break;
+                        case CodecProfileLevel.APVLevel11Band0:
+                            SR =      6082560; BR =   14000000; break;
+                        case CodecProfileLevel.APVLevel11Band1:
+                            SR =      6082560; BR =   21000000; break;
+                        case CodecProfileLevel.APVLevel11Band2:
+                            SR =      6082560; BR =   28000000; break;
+                        case CodecProfileLevel.APVLevel11Band3:
+                            SR =      6082560; BR =   42000000; break;
+                        case CodecProfileLevel.APVLevel2Band0:
+                            SR =     15667200; BR =   36000000; break;
+                        case CodecProfileLevel.APVLevel2Band1:
+                            SR =     15667200; BR =   53000000; break;
+                        case CodecProfileLevel.APVLevel2Band2:
+                            SR =     15667200; BR =   71000000; break;
+                        case CodecProfileLevel.APVLevel2Band3:
+                            SR =     15667200; BR =  106000000; break;
+                        case CodecProfileLevel.APVLevel21Band0:
+                            SR =     31334400; BR =   71000000; break;
+                        case CodecProfileLevel.APVLevel21Band1:
+                            SR =     31334400; BR =  106000000; break;
+                        case CodecProfileLevel.APVLevel21Band2:
+                            SR =     31334400; BR =  141000000; break;
+                        case CodecProfileLevel.APVLevel21Band3:
+                            SR =     31334400; BR =  212000000; break;
+                        case CodecProfileLevel.APVLevel3Band0:
+                            SR =     66846720; BR =  101000000; break;
+                        case CodecProfileLevel.APVLevel3Band1:
+                            SR =     66846720; BR =  151000000; break;
+                        case CodecProfileLevel.APVLevel3Band2:
+                            SR =     66846720; BR =  201000000; break;
+                        case CodecProfileLevel.APVLevel3Band3:
+                            SR =     66846720; BR =  301000000; break;
+                        case CodecProfileLevel.APVLevel31Band0:
+                            SR =    133693440; BR =  201000000; break;
+                        case CodecProfileLevel.APVLevel31Band1:
+                            SR =    133693440; BR =  301000000; break;
+                        case CodecProfileLevel.APVLevel31Band2:
+                            SR =    133693440; BR =  401000000; break;
+                        case CodecProfileLevel.APVLevel31Band3:
+                            SR =    133693440; BR =  602000000; break;
+                        case CodecProfileLevel.APVLevel4Band0:
+                            SR =    265420800; BR =  401000000; break;
+                        case CodecProfileLevel.APVLevel4Band1:
+                            SR =    265420800; BR =  602000000; break;
+                        case CodecProfileLevel.APVLevel4Band2:
+                            SR =    265420800; BR =  780000000; break;
+                        case CodecProfileLevel.APVLevel4Band3:
+                            SR =    265420800; BR = 1170000000; break;
+                        case CodecProfileLevel.APVLevel41Band0:
+                            SR =    530841600; BR =  780000000; break;
+                        case CodecProfileLevel.APVLevel41Band1:
+                            SR =    530841600; BR = 1170000000; break;
+                        case CodecProfileLevel.APVLevel41Band2:
+                            SR =    530841600; BR = 1560000000; break;
+                        case CodecProfileLevel.APVLevel41Band3:
+                            // Current API allows bitrates only up to Max Integer
+                            // Hence we are limiting internal limits to Integer.MAX_VALUE
+                            // even when actual Level/Band limits are higher
+                            SR =    530841600; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel5Band0:
+                            SR =   1061683200; BR = 1560000000; break;
+                        case CodecProfileLevel.APVLevel5Band1:
+                            SR =   1061683200; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel5Band2:
+                            SR =   1061683200; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel5Band3:
+                            SR =   1061683200; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel51Band0:
+                        case CodecProfileLevel.APVLevel51Band1:
+                        case CodecProfileLevel.APVLevel51Band2:
+                        case CodecProfileLevel.APVLevel51Band3:
+                            SR =   2123366400; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel6Band0:
+                        case CodecProfileLevel.APVLevel6Band1:
+                        case CodecProfileLevel.APVLevel6Band2:
+                        case CodecProfileLevel.APVLevel6Band3:
+                            SR =  4777574400L; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel61Band0:
+                        case CodecProfileLevel.APVLevel61Band1:
+                        case CodecProfileLevel.APVLevel61Band2:
+                        case CodecProfileLevel.APVLevel61Band3:
+                            SR =  8493465600L; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel7Band0:
+                        case CodecProfileLevel.APVLevel7Band1:
+                        case CodecProfileLevel.APVLevel7Band2:
+                        case CodecProfileLevel.APVLevel7Band3:
+                            SR = 16986931200L; BR = Integer.MAX_VALUE; break;
+                        case CodecProfileLevel.APVLevel71Band0:
+                        case CodecProfileLevel.APVLevel71Band1:
+                        case CodecProfileLevel.APVLevel71Band2:
+                        case CodecProfileLevel.APVLevel71Band3:
+                            SR = 33973862400L; BR = Integer.MAX_VALUE; break;
+                        default:
+                            Log.w(TAG, "Unrecognized level "
+                                    + profileLevel.level + " for " + mime);
+                            errors |= ERROR_UNRECOGNIZED;
+                    }
+                    switch (profileLevel.profile) {
+                        case CodecProfileLevel.APVProfile422_10:
+                        case CodecProfileLevel.APVProfile422_10HDR10:
+                        case CodecProfileLevel.APVProfile422_10HDR10Plus:
+                            break;
+                        default:
+                            Log.w(TAG, "Unrecognized profile "
+                                    + profileLevel.profile + " for " + mime);
+                            errors |= ERROR_UNRECOGNIZED;
+                    }
+                    errors &= ~ERROR_NONE_SUPPORTED;
+                    maxBlocksPerSecond = Math.max(SR, maxBlocksPerSecond);
+                    maxBps = Math.max(BR, maxBps);
+                }
+
+                final int blockSize = 16;
+                maxBlocks = Integer.MAX_VALUE;
+                maxBlocksPerSecond = Utils.divUp(maxBlocksPerSecond, blockSize * blockSize);
+                maxBlocks = (int) Math.min((long) maxBlocks, maxBlocksPerSecond);
+                // Max frame size in APV is 2^24
+                int maxLengthInBlocks = Utils.divUp((int) Math.pow(2, 24), blockSize);
+                maxLengthInBlocks = Math.min(maxLengthInBlocks, maxBlocks);
+                applyMacroBlockLimits(
+                        maxLengthInBlocks, maxLengthInBlocks,
+                        maxBlocks, maxBlocksPerSecond,
+                        blockSize, blockSize,
+                        2 /* widthAlignment */, 1 /* heightAlignment */);
             } else {
                 Log.w(TAG, "Unsupported mime " + mime);
                 // using minimal bitrate here.  should be overriden by

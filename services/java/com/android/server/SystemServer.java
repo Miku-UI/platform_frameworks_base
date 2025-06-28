@@ -91,6 +91,7 @@ import android.server.ServerProtoEnums;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.text.TextUtils;
+import android.tracing.perfetto.InitArguments;
 import android.util.ArrayMap;
 import android.util.DisplayMetrics;
 import android.util.Dumpable;
@@ -109,6 +110,7 @@ import com.android.internal.notification.SystemNotificationChannels;
 import com.android.internal.os.ApplicationSharedMemory;
 import com.android.internal.os.BinderInternal;
 import com.android.internal.os.RuntimeInit;
+import com.android.internal.os.logging.MetricsLoggerWrapper;
 import com.android.internal.pm.RoSystemFeatures;
 import com.android.internal.policy.AttributeCache;
 import com.android.internal.protolog.ProtoLog;
@@ -119,6 +121,7 @@ import com.android.internal.util.EmergencyAffordanceManager;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.widget.ILockSettings;
 import com.android.internal.widget.LockSettingsInternal;
+import com.android.modules.utils.build.SdkLevel;
 import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.accounts.AccountManagerService;
 import com.android.server.adb.AdbService;
@@ -293,6 +296,7 @@ import com.android.server.usage.StorageStatsService;
 import com.android.server.usage.UsageStatsService;
 import com.android.server.usb.UsbService;
 import com.android.server.utils.TimingsTraceAndSlog;
+import com.android.server.vcn.VcnLocation;
 import com.android.server.vibrator.VibratorManagerService;
 import com.android.server.voiceinteraction.VoiceInteractionManagerService;
 import com.android.server.vr.VrManagerService;
@@ -363,6 +367,8 @@ public final class SystemServer implements Dumpable {
             "com.android.clockwork.time.WearTimeService";
     private static final String WEAR_SETTINGS_SERVICE_CLASS =
             "com.android.clockwork.settings.WearSettingsService";
+    private static final String WEAR_GESTURE_SERVICE_CLASS =
+            "com.android.clockwork.gesture.WearGestureService";
     private static final String WRIST_ORIENTATION_SERVICE_CLASS =
             "com.android.clockwork.wristorientation.WristOrientationService";
     private static final String IOT_SERVICE_CLASS =
@@ -438,7 +444,7 @@ public final class SystemServer implements Dumpable {
             "/apex/com.android.uwb/javalib/service-uwb.jar";
     private static final String UWB_SERVICE_CLASS = "com.android.server.uwb.UwbService";
     private static final String BLUETOOTH_APEX_SERVICE_JAR_PATH =
-            "/apex/com.android.btservices/javalib/service-bluetooth.jar";
+            "/apex/com.android.bt/javalib/service-bluetooth.jar";
     private static final String BLUETOOTH_SERVICE_CLASS =
             "com.android.server.bluetooth.BluetoothService";
     private static final String DEVICE_LOCK_SERVICE_CLASS =
@@ -790,6 +796,12 @@ public final class SystemServer implements Dumpable {
     private void run() {
         TimingsTraceAndSlog t = new TimingsTraceAndSlog();
         try {
+            if (android.tracing.Flags.systemServerLargePerfettoShmemBuffer()) {
+                // Explicitly initialize a 4 MB shmem buffer for Perfetto producers (b/382369925)
+                android.tracing.perfetto.Producer.init(new InitArguments(
+                        InitArguments.PERFETTO_BACKEND_SYSTEM, 4 * 1024));
+            }
+
             t.traceBegin("InitBeforeStartServices");
 
             // Record the process start information in sys props.
@@ -885,6 +897,17 @@ public final class SystemServer implements Dumpable {
 
             SystemServiceRegistry.sEnableServiceNotFoundWtf = true;
 
+            // Prepare the thread pool for init tasks that can be parallelized
+            SystemServerInitThreadPool tp = SystemServerInitThreadPool.start();
+            mDumper.addDumpable(tp);
+
+            if (android.server.Flags.earlySystemConfigInit()) {
+                // SystemConfig init is expensive, so enqueue the work as early as possible to allow
+                // concurrent execution before it's needed (typically by ActivityManagerService).
+                // As native library loading is also expensive, this is a good place to start.
+                startSystemConfigInit(t);
+            }
+
             // Initialize native services.
             System.loadLibrary("android_servers");
 
@@ -917,9 +940,6 @@ public final class SystemServer implements Dumpable {
             mDumper.addDumpable(mSystemServiceManager);
 
             LocalServices.addService(SystemServiceManager.class, mSystemServiceManager);
-            // Prepare the thread pool for init tasks that can be parallelized
-            SystemServerInitThreadPool tp = SystemServerInitThreadPool.start();
-            mDumper.addDumpable(tp);
 
             // Lazily load the pre-installed system font map in SystemServer only if we're not doing
             // the optimized font loading in the FontManagerService.
@@ -1001,6 +1021,17 @@ public final class SystemServer implements Dumpable {
             }
         });
 
+        // Register callback to report native memory metrics post GC cleanup
+        // for system_server
+        if (android.app.Flags.reportPostgcMemoryMetrics() &&
+            com.android.libcore.readonly.Flags.postCleanupApis()) {
+            VMRuntime.addPostCleanupCallback(new Runnable() {
+                @Override public void run() {
+                    MetricsLoggerWrapper.logPostGcMemorySnapshot();
+                }
+            });
+        }
+
         // Loop forever.
         Looper.loop();
         throw new RuntimeException("Main thread loop unexpectedly exited");
@@ -1073,6 +1104,14 @@ public final class SystemServer implements Dumpable {
         }
     }
 
+    private void startSystemConfigInit(TimingsTraceAndSlog t) {
+        Slog.i(TAG, "Reading configuration...");
+        final String tagSystemConfig = "ReadingSystemConfig";
+        t.traceBegin(tagSystemConfig);
+        SystemServerInitThreadPool.submit(SystemConfig::getInstance, tagSystemConfig);
+        t.traceEnd();
+    }
+
     private void createSystemContext() {
         ActivityThread activityThread = ActivityThread.systemMain();
         mSystemContext = activityThread.getSystemContext();
@@ -1111,11 +1150,11 @@ public final class SystemServer implements Dumpable {
         mDumper.addDumpable(watchdog);
         t.traceEnd();
 
-        Slog.i(TAG, "Reading configuration...");
-        final String TAG_SYSTEM_CONFIG = "ReadingSystemConfig";
-        t.traceBegin(TAG_SYSTEM_CONFIG);
-        SystemServerInitThreadPool.submit(SystemConfig::getInstance, TAG_SYSTEM_CONFIG);
-        t.traceEnd();
+        // Legacy entry point for starting SystemConfig init, only needed if the early init flag is
+        // disabled and we haven't already triggered init before bootstrap services.
+        if (!android.server.Flags.earlySystemConfigInit()) {
+            startSystemConfigInit(t);
+        }
 
         // Orchestrates some ProtoLogging functionality.
         if (android.tracing.Flags.clientSideProtoLogging()) {
@@ -1243,12 +1282,6 @@ public final class SystemServer implements Dumpable {
         if (!Flags.refactorCrashrecovery()) {
             // Initialize RescueParty.
             CrashRecoveryAdaptor.rescuePartyRegisterHealthObserver(mSystemContext);
-            if (!Flags.recoverabilityDetection()) {
-                // Now that we have the bare essentials of the OS up and running, take
-                // note that we just booted, which might send out a rescue party if
-                // we're stuck in a runtime restart loop.
-                CrashRecoveryAdaptor.packageWatchdogNoteBoot(mSystemContext);
-            }
         }
 
 
@@ -1507,6 +1540,8 @@ public final class SystemServer implements Dumpable {
         boolean disableCameraService = SystemProperties.getBoolean("config.disable_cameraservice",
                 false);
 
+        boolean isDesktop = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PC);
+
         boolean isWatch = RoSystemFeatures.hasFeatureWatch(context);
 
         boolean isArc = context.getPackageManager().hasSystemFeature(
@@ -1519,14 +1554,6 @@ public final class SystemServer implements Dumpable {
 
         boolean enableVrService = context.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_VR_MODE_HIGH_PERFORMANCE);
-
-        if (!Flags.recoverabilityDetection()) {
-            // For debugging RescueParty
-            if (Build.IS_DEBUGGABLE
-                    && SystemProperties.getBoolean("debug.crash_system", false)) {
-                throw new RuntimeException();
-            }
-        }
 
         try {
             final String SECONDARY_ZYGOTE_PRELOAD = "SecondaryZygotePreload";
@@ -1636,7 +1663,7 @@ public final class SystemServer implements Dumpable {
                 t.traceEnd();
             }
 
-            if (!isTv) {
+            if (!isTv && !isDesktop) {
                 t.traceBegin("StartVibratorManagerService");
                 mSystemServiceManager.startService(VibratorManagerService.Lifecycle.class);
                 t.traceEnd();
@@ -1767,15 +1794,17 @@ public final class SystemServer implements Dumpable {
             SignedConfigService.registerUpdateReceiver(mSystemContext);
             t.traceEnd();
 
-            t.traceBegin("AppIntegrityService");
-            mSystemServiceManager.startService(AppIntegrityManagerService.class);
-            t.traceEnd();
+            if (!android.server.Flags.removeAppIntegrityManagerService()) {
+                t.traceBegin("AppIntegrityService");
+                mSystemServiceManager.startService(AppIntegrityManagerService.class);
+                t.traceEnd();
+            }
 
             t.traceBegin("StartLogcatManager");
             mSystemServiceManager.startService(LogcatManagerService.class);
             t.traceEnd();
 
-            if (!isWatch && !isTv && !isAutomotive
+            if (!isWatch && !isTv && !isAutomotive && !isDesktop
                     && android.security.Flags.aflApi()) {
                 t.traceBegin("StartIntrusionDetectionService");
                 mSystemServiceManager.startService(IntrusionDetectionService.class);
@@ -1788,7 +1817,7 @@ public final class SystemServer implements Dumpable {
                 t.traceEnd();
             }
 
-            if (!isWatch && !isTv && !isAutomotive
+            if (!isWatch && !isTv && !isAutomotive && !isDesktop
                     && android.security.Flags.aapmApi()) {
                 t.traceBegin("StartAdvancedProtectionService");
                 mSystemServiceManager.startService(AdvancedProtectionService.Lifecycle.class);
@@ -1927,6 +1956,10 @@ public final class SystemServer implements Dumpable {
         } finally {
             Watchdog.getInstance().resumeWatchingCurrentThread("dexopt");
         }
+        t.traceEnd();
+
+        t.traceBegin("UpdateMetricsIfNeeded");
+        mPackageManagerService.updateMetricsIfNeeded();
         t.traceEnd();
 
         t.traceBegin("PerformFstrimIfNeeded");
@@ -2150,13 +2183,14 @@ public final class SystemServer implements Dumpable {
                 mSystemServiceManager.startServiceFromJar(
                         WIFI_SCANNING_SERVICE_CLASS, WIFI_APEX_SERVICE_JAR_PATH);
                 t.traceEnd();
-                // Start USD service
-                if (android.net.wifi.flags.Flags.usd()) {
-                    t.traceBegin("StartUsd");
-                    mSystemServiceManager.startServiceFromJar(
-                            WIFI_USD_SERVICE_CLASS, WIFI_APEX_SERVICE_JAR_PATH);
-                    t.traceEnd();
-                }
+            }
+
+            if (android.net.wifi.flags.Flags.usd() && context.getResources().getBoolean(
+                    com.android.internal.R.bool.config_deviceSupportsWifiUsd)) {
+                t.traceBegin("StartWifiUsd");
+                mSystemServiceManager.startServiceFromJar(WIFI_USD_SERVICE_CLASS,
+                        WIFI_APEX_SERVICE_JAR_PATH);
+                t.traceEnd();
             }
 
             if (context.getPackageManager().hasSystemFeature(
@@ -2232,16 +2266,27 @@ public final class SystemServer implements Dumpable {
                 Slog.i(TAG, "Not starting VpnManagerService");
             }
 
-            t.traceBegin("StartVcnManagementService");
-            try {
-                // TODO: b/375213246 When VCN is in mainline module, load it from the apex path.
-                // Whether VCN will be in apex or in the platform will be gated by a build system
-                // flag.
-                mSystemServiceManager.startService(CONNECTIVITY_SERVICE_INITIALIZER_B_CLASS);
-            } catch (Throwable e) {
-                reportWtf("starting VCN Management Service", e);
+            // TODO: b/374174952 In the end state, VCN registration will be moved to Tethering
+            // module. Thus the following code block should be removed after Baklava is released
+            if (!VcnLocation.IS_VCN_IN_MAINLINE || !SdkLevel.isAtLeastB()) {
+                t.traceBegin("StartVcnManagementService");
+
+                try {
+                    if (!VcnLocation.IS_VCN_IN_MAINLINE) {
+                        mSystemServiceManager.startService(
+                                CONNECTIVITY_SERVICE_INITIALIZER_B_CLASS);
+                    } else {
+                        // When VCN is in mainline but the SDK level is B-, start the service with
+                        // the apex path. This path can only be hit on an unfinalized B platform
+                        mSystemServiceManager.startServiceFromJar(
+                                CONNECTIVITY_SERVICE_INITIALIZER_B_CLASS,
+                                CONNECTIVITY_SERVICE_APEX_PATH);
+                    }
+                } catch (Throwable e) {
+                    reportWtf("starting VCN Management Service", e);
+                }
+                t.traceEnd();
             }
-            t.traceEnd();
 
             t.traceBegin("StartSystemUpdateManagerService");
             try {
@@ -2684,16 +2729,18 @@ public final class SystemServer implements Dumpable {
             mSystemServiceManager.startService(AuthService.class);
             t.traceEnd();
 
-            if (android.security.Flags.secureLockdown()) {
-                t.traceBegin("StartSecureLockDeviceService.Lifecycle");
-                mSystemServiceManager.startService(SecureLockDeviceService.Lifecycle.class);
-                t.traceEnd();
-            }
+            if (!isWatch && !isTv && !isAutomotive) {
+                if (android.security.Flags.secureLockdown()) {
+                    t.traceBegin("StartSecureLockDeviceService.Lifecycle");
+                    mSystemServiceManager.startService(SecureLockDeviceService.Lifecycle.class);
+                    t.traceEnd();
+                }
 
-            if (android.adaptiveauth.Flags.enableAdaptiveAuth()) {
-                t.traceBegin("StartAuthenticationPolicyService");
-                mSystemServiceManager.startService(AuthenticationPolicyService.class);
-                t.traceEnd();
+                if (android.adaptiveauth.Flags.enableAdaptiveAuth()) {
+                    t.traceBegin("StartAuthenticationPolicyService");
+                    mSystemServiceManager.startService(AuthenticationPolicyService.class);
+                    t.traceEnd();
+                }
             }
 
             if (!isWatch) {
@@ -2806,6 +2853,13 @@ public final class SystemServer implements Dumpable {
             if (enableWristOrientationService) {
                 t.traceBegin("StartWristOrientationService");
                 mSystemServiceManager.startService(WRIST_ORIENTATION_SERVICE_CLASS);
+                t.traceEnd();
+            }
+
+            if (android.server.Flags.wearGestureApi()
+                    && SystemProperties.getBoolean("config.enable_gesture_api", false)) {
+                t.traceBegin("StartWearGestureService");
+                mSystemServiceManager.startService(WEAR_GESTURE_SERVICE_CLASS);
                 t.traceEnd();
             }
         }
@@ -3041,13 +3095,11 @@ public final class SystemServer implements Dumpable {
             CrashRecoveryAdaptor.initializeCrashrecoveryModuleService(mSystemServiceManager);
             t.traceEnd();
         } else {
-            if (Flags.recoverabilityDetection()) {
-                // Now that we have the essential services needed for mitigations, register the boot
-                // with package watchdog.
-                // Note that we just booted, which might send out a rescue party if we're stuck in a
-                // runtime restart loop.
-                CrashRecoveryAdaptor.packageWatchdogNoteBoot(mSystemContext);
-            }
+            // Now that we have the essential services needed for mitigations, register the boot
+            // with package watchdog.
+            // Note that we just booted, which might send out a rescue party if we're stuck in a
+            // runtime restart loop.
+            CrashRecoveryAdaptor.packageWatchdogNoteBoot(mSystemContext);
         }
 
         t.traceBegin("MakeDisplayManagerServiceReady");
@@ -3093,18 +3145,13 @@ public final class SystemServer implements Dumpable {
         if (com.android.ranging.flags.Flags.rangingStackEnabled()) {
             if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_UWB)
                     || context.getPackageManager().hasSystemFeature(
-                            PackageManager.FEATURE_WIFI_RTT)
+                            PackageManager.FEATURE_WIFI_AWARE)
                     || (com.android.ranging.flags.Flags.rangingCsEnabled()
                             && context.getPackageManager().hasSystemFeature(
-                                    PackageManager.FEATURE_BLUETOOTH_LE_CHANNEL_SOUNDING))) {
+                                    PackageManager.FEATURE_BLUETOOTH_LE))) {
                 t.traceBegin("RangingService");
-                // TODO: b/375264320 - Remove after RELEASE_RANGING_STACK is ramped to next.
-                try {
-                    mSystemServiceManager.startServiceFromJar(RANGING_SERVICE_CLASS,
-                            RANGING_APEX_SERVICE_JAR_PATH);
-                } catch (Throwable e) {
-                    Slog.d(TAG, "service-ranging.jar not found, not starting RangingService");
-                }
+                mSystemServiceManager.startServiceFromJar(RANGING_SERVICE_CLASS,
+                        RANGING_APEX_SERVICE_JAR_PATH);
                 t.traceEnd();
             }
         }
@@ -3466,12 +3513,10 @@ public final class SystemServer implements Dumpable {
      * are updated outside of OTA; and to avoid breaking dependencies from system into apexes.
      */
     private void startApexServices(@NonNull TimingsTraceAndSlog t) {
-        if (Flags.recoverabilityDetection()) {
-            // For debugging RescueParty
-            if (Build.IS_DEBUGGABLE
-                    && SystemProperties.getBoolean("debug.crash_system", false)) {
-                throw new RuntimeException();
-            }
+        // For debugging RescueParty
+        if (Build.IS_DEBUGGABLE
+                && SystemProperties.getBoolean("debug.crash_system", false)) {
+            throw new RuntimeException();
         }
 
         t.traceBegin("startApexServices");

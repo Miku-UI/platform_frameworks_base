@@ -40,14 +40,14 @@ class DisplayWindowListenerController {
     }
 
     int[] registerListener(IDisplayWindowListener listener) {
+        mDisplayListeners.register(listener);
+        final IntArray displayIds = new IntArray();
         synchronized (mService.mGlobalLock) {
-            mDisplayListeners.register(listener);
-            final IntArray displayIds = new IntArray();
             mService.mAtmService.mRootWindowContainer.forAllDisplays((displayContent) -> {
                 displayIds.add(displayContent.mDisplayId);
             });
-            return displayIds.toArray();
         }
+        return displayIds.toArray();
     }
 
     void unregisterListener(IDisplayWindowListener listener) {
@@ -128,6 +128,17 @@ class DisplayWindowListenerController {
             try {
                 mDisplayListeners.getBroadcastItem(i).onKeepClearAreasChanged(display.mDisplayId,
                         new ArrayList<>(restricted), new ArrayList<>(unrestricted));
+            } catch (RemoteException e) {
+            }
+        }
+        mDisplayListeners.finishBroadcast();
+    }
+
+    void dispatchDesktopModeEligibleChanged(int displayId) {
+        int count = mDisplayListeners.beginBroadcast();
+        for (int i = 0; i < count; ++i) {
+            try {
+                mDisplayListeners.getBroadcastItem(i).onDesktopModeEligibleChanged(displayId);
             } catch (RemoteException e) {
             }
         }

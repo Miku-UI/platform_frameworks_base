@@ -918,6 +918,30 @@ public class VpnTest extends VpnTestBase {
     }
 
     @Test
+    public void testOnUserAddedAndRemoved_nullUserInfo() throws Exception {
+        final Vpn vpn = createVpn(PRIMARY_USER.id);
+        final Set<Range<Integer>> initialRange = rangeSet(PRIMARY_USER_RANGE);
+        // Note since mVpnProfile is a Ikev2VpnProfile, this starts an IkeV2VpnRunner.
+        startLegacyVpn(vpn, mVpnProfile);
+        // Set an initial Uid range and mock the network agent
+        vpn.mNetworkCapabilities.setUids(initialRange);
+        vpn.mNetworkAgent = mMockNetworkAgent;
+
+        // Add the restricted user and then remove it immediately. So the getUserInfo() will return
+        // null for the given restricted user id.
+        setMockedUsers(PRIMARY_USER, RESTRICTED_PROFILE_A);
+        doReturn(null).when(mUserManager).getUserInfo(RESTRICTED_PROFILE_A.id);
+        vpn.onUserAdded(RESTRICTED_PROFILE_A.id);
+        // Expect no range change to the NetworkCapabilities.
+        assertEquals(initialRange, vpn.mNetworkCapabilities.getUids());
+
+        // Remove the restricted user
+        vpn.onUserRemoved(RESTRICTED_PROFILE_A.id);
+        // Expect no range change to the NetworkCapabilities.
+        assertEquals(initialRange, vpn.mNetworkCapabilities.getUids());
+    }
+
+    @Test
     public void testPrepare_throwSecurityExceptionWhenGivenPackageDoesNotBelongToTheCaller()
             throws Exception {
         mTestDeps.mIgnoreCallingUidChecks = false;
@@ -3160,6 +3184,32 @@ public class VpnTest extends VpnTestBase {
 
         startLegacyVpn(vpn, profile);
         assertEquals(profile, ikev2VpnProfile.toVpnProfile());
+    }
+
+    @Test
+    public void testStartAlwaysOnVpnOnSafeMode() throws Exception {
+        final Vpn vpn = createVpn(PRIMARY_USER.id);
+        setMockedUsers(PRIMARY_USER);
+
+        // UID checks must return a different UID; otherwise it'll be treated as already prepared.
+        final int uid = Process.myUid() + 1;
+        when(mPackageManager.getPackageUidAsUser(eq(TEST_VPN_PKG), anyInt()))
+                .thenReturn(uid);
+        when(mVpnProfileStore.get(vpn.getProfileNameForPackage(TEST_VPN_PKG)))
+                .thenReturn(mVpnProfile.encode());
+
+        setAndVerifyAlwaysOnPackage(vpn, uid, false);
+        assertTrue(vpn.startAlwaysOnVpn());
+        assertEquals(TEST_VPN_PKG, vpn.getAlwaysOnPackage());
+
+        // Simulate safe mode and restart the always-on VPN to verify the always-on package is not
+        // reset.
+        doReturn(null).when(mVpnProfileStore).get(vpn.getProfileNameForPackage(TEST_VPN_PKG));
+        doReturn(null).when(mPackageManager).queryIntentServicesAsUser(
+                any(), any(), eq(PRIMARY_USER.id));
+        doReturn(true).when(mPackageManager).isSafeMode();
+        assertFalse(vpn.startAlwaysOnVpn());
+        assertEquals(TEST_VPN_PKG, vpn.getAlwaysOnPackage());
     }
 
     // Make it public and un-final so as to spy it

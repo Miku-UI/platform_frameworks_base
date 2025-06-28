@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #define LOG_TAG "JavaBinder"
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 
 #include "android_util_Binder.h"
 
@@ -74,6 +73,7 @@ static struct bindernative_offsets_t
     jmethodID mExecTransact;
     jmethodID mGetInterfaceDescriptor;
     jmethodID mTransactionCallback;
+    jmethodID mGetExtension;
 
     // Object state.
     jfieldID mObject;
@@ -478,7 +478,7 @@ public:
         if (b) return b;
 
         // b/360067751: constructor may trigger GC, so call outside lock
-        b = new JavaBBinder(env, obj);
+        b = sp<JavaBBinder>::make(env, obj);
 
         {
             AutoMutex _l(mLock);
@@ -489,8 +489,12 @@ public:
             if (mVintf) {
                 ::android::internal::Stability::markVintf(b.get());
             }
-            if (mExtension != nullptr) {
-                b.get()->setExtension(mExtension);
+            if (mSetExtensionCalled) {
+                jobject javaIBinderObject = env->CallObjectMethod(obj, gBinderOffsets.mGetExtension);
+                sp<IBinder> extensionFromJava = ibinderForJavaObject(env, javaIBinderObject);
+                if (extensionFromJava != nullptr) {
+                    b.get()->setExtension(extensionFromJava);
+                }
             }
             mBinder = b;
             ALOGV("Creating JavaBinder %p (refs %p) for Object %p, weakCount=%" PRId32 "\n",
@@ -516,21 +520,12 @@ public:
         mVintf = false;
     }
 
-    sp<IBinder> getExtension() {
-        AutoMutex _l(mLock);
-        sp<JavaBBinder> b = mBinder.promote();
-        if (b != nullptr) {
-            return b.get()->getExtension();
-        }
-        return mExtension;
-    }
-
     void setExtension(const sp<IBinder>& extension) {
         AutoMutex _l(mLock);
-        mExtension = extension;
+        mSetExtensionCalled = true;
         sp<JavaBBinder> b = mBinder.promote();
         if (b != nullptr) {
-            b.get()->setExtension(mExtension);
+            b.get()->setExtension(extension);
         }
     }
 
@@ -542,8 +537,7 @@ private:
     // is too much binder state here, we can think about making JavaBBinder an
     // sp here (avoid recreating it)
     bool            mVintf = false;
-
-    sp<IBinder>     mExtension;
+    bool            mSetExtensionCalled = false;
 };
 
 // ----------------------------------------------------------------------------
@@ -645,11 +639,17 @@ public:
         } else {
             mObject = env->NewGlobalRef(object);
         }
+    }
+
+    void onFirstRef() override {
+        T::onFirstRef();
+
+        sp<RecipientList<T>> list = mList.promote();
         // These objects manage their own lifetimes so are responsible for final bookkeeping.
         // The list holds a strong reference to this object.
         LOG_DEATH_FREEZE("%s Adding JavaRecipient %p to RecipientList %p", logPrefix<T>(), this,
                          list.get());
-        list->add(this);
+        list->add(sp<JavaRecipient>::fromExisting(this));
     }
 
     void clearReference() {
@@ -657,7 +657,7 @@ public:
         if (list != NULL) {
             LOG_DEATH_FREEZE("%s Removing JavaRecipient %p from RecipientList %p", logPrefix<T>(),
                              this, list.get());
-            list->remove(this);
+            list->remove(sp<JavaRecipient>::fromExisting(this));
         } else {
             LOG_DEATH_FREEZE("%s clearReference() on JavaRecipient %p but RecipientList wp purged",
                              logPrefix<T>(), this);
@@ -939,7 +939,7 @@ struct BinderProxyNativeData {
     // Frozen state change callbacks for mObject. Reference counted only because
     // JavaFrozenStateChangeCallback hold a weak reference that can be
     // temporarily promoted.
-    sp<FrozenStateChangeCallbackList> mFrozenStateChangCallbackList;
+    sp<FrozenStateChangeCallbackList> mFrozenStateChangeCallbackList;
 };
 
 BinderProxyNativeData* getBPNativeData(JNIEnv* env, jobject obj) {
@@ -964,8 +964,8 @@ jobject javaObjectForIBinder(JNIEnv* env, const sp<IBinder>& val)
     }
 
     BinderProxyNativeData* nativeData = new BinderProxyNativeData();
-    nativeData->mOrgue = new DeathRecipientList;
-    nativeData->mFrozenStateChangCallbackList = new FrozenStateChangeCallbackList;
+    nativeData->mOrgue = sp<DeathRecipientList>::make();
+    nativeData->mFrozenStateChangeCallbackList = sp<FrozenStateChangeCallbackList>::make();
     nativeData->mObject = val;
 
     jobject object = env->CallStaticObjectMethod(gBinderProxyOffsets.mClass,
@@ -1249,10 +1249,6 @@ static void android_os_Binder_blockUntilThreadAvailable(JNIEnv* env, jobject cla
     return IPCThreadState::self()->blockUntilThreadAvailable();
 }
 
-static jobject android_os_Binder_getExtension(JNIEnv* env, jobject obj) {
-    JavaBBinderHolder* jbh = (JavaBBinderHolder*) env->GetLongField(obj, gBinderOffsets.mObject);
-    return javaObjectForIBinder(env, jbh->getExtension());
-}
 
 static void android_os_Binder_setExtension(JNIEnv* env, jobject obj, jobject extensionObject) {
     JavaBBinderHolder* jbh = (JavaBBinderHolder*) env->GetLongField(obj, gBinderOffsets.mObject);
@@ -1295,8 +1291,7 @@ static const JNINativeMethod gBinderMethods[] = {
     { "getNativeBBinderHolder", "()J", (void*)android_os_Binder_getNativeBBinderHolder },
     { "getNativeFinalizer", "()J", (void*)android_os_Binder_getNativeFinalizer },
     { "blockUntilThreadAvailable", "()V", (void*)android_os_Binder_blockUntilThreadAvailable },
-    { "getExtension", "()Landroid/os/IBinder;", (void*)android_os_Binder_getExtension },
-    { "setExtension", "(Landroid/os/IBinder;)V", (void*)android_os_Binder_setExtension },
+    { "setExtensionNative", "(Landroid/os/IBinder;)V", (void*)android_os_Binder_setExtension },
 };
 // clang-format on
 
@@ -1313,6 +1308,8 @@ static int int_register_android_os_Binder(JNIEnv* env)
     gBinderOffsets.mTransactionCallback =
             GetStaticMethodIDOrDie(env, clazz, "transactionCallback", "(IIII)V");
     gBinderOffsets.mObject = GetFieldIDOrDie(env, clazz, "mObject", "J");
+    gBinderOffsets.mGetExtension = GetMethodIDOrDie(env, clazz, "getExtension",
+                                                        "()Landroid/os/IBinder;");
 
     return RegisterMethodsOrDie(
         env, kBinderPathName,
@@ -1571,8 +1568,8 @@ static void android_os_BinderProxy_linkToDeath(JNIEnv* env, jobject obj,
     LOG_DEATH_FREEZE("linkToDeath: binder=%p recipient=%p\n", target, recipient);
 
     if (!target->localBinder()) {
-        DeathRecipientList* list = nd->mOrgue.get();
-        sp<JavaDeathRecipient> jdr = new JavaDeathRecipient(env, recipient, list);
+        sp<DeathRecipientList> list = nd->mOrgue;
+        sp<JavaDeathRecipient> jdr = sp<JavaDeathRecipient>::make(env, recipient, list);
         status_t err = target->linkToDeath(jdr, NULL, flags);
         if (err != NO_ERROR) {
             // Failure adding the death recipient, so clear its reference
@@ -1648,7 +1645,7 @@ static void android_os_BinderProxy_addFrozenStateChangeCallback(
     LOG_DEATH_FREEZE("addFrozenStateChangeCallback: binder=%p callback=%p\n", target, callback);
 
     if (!target->localBinder()) {
-        FrozenStateChangeCallbackList* list = nd->mFrozenStateChangCallbackList.get();
+        sp<FrozenStateChangeCallbackList> list = nd->mFrozenStateChangeCallbackList;
         auto jfscc = sp<JavaFrozenStateChangeCallback>::make(env, callback, list);
         status_t err = target->addFrozenStateChangeCallback(jfscc);
         if (err != NO_ERROR) {
@@ -1682,7 +1679,7 @@ static jboolean android_os_BinderProxy_removeFrozenStateChangeCallback(JNIEnv* e
         status_t err = NAME_NOT_FOUND;
 
         // If we find the matching callback, proceed to unlink using that
-        FrozenStateChangeCallbackList* list = nd->mFrozenStateChangCallbackList.get();
+        FrozenStateChangeCallbackList* list = nd->mFrozenStateChangeCallbackList.get();
         sp<JavaRecipient<IBinder::FrozenStateChangeCallback> > origJFSCC = list->find(callback);
         LOG_DEATH_FREEZE("   removeFrozenStateChangeCallback found list %p and JFSCC %p", list,
                          origJFSCC.get());
@@ -1706,12 +1703,16 @@ static jboolean android_os_BinderProxy_removeFrozenStateChangeCallback(JNIEnv* e
     return res;
 }
 
+static jboolean android_os_BinderProxy_frozenStateChangeCallbackSupported(JNIEnv*, jclass*) {
+    return ProcessState::isDriverFeatureEnabled(ProcessState::DriverFeature::FREEZE_NOTIFICATION);
+}
+
 static void BinderProxy_destroy(void* rawNativeData)
 {
     BinderProxyNativeData * nativeData = (BinderProxyNativeData *) rawNativeData;
     LOG_DEATH_FREEZE("Destroying BinderProxy: binder=%p drl=%p fsccl=%p\n",
                      nativeData->mObject.get(), nativeData->mOrgue.get(),
-                     nativeData->mFrozenStateChangCallbackList.get());
+                     nativeData->mFrozenStateChangeCallbackList.get());
     delete nativeData;
     IPCThreadState::self()->flushCommands();
 }
@@ -1750,6 +1751,8 @@ static const JNINativeMethod gBinderProxyMethods[] = {
         "(Landroid/os/IBinder$FrozenStateChangeCallback;)V", (void*)android_os_BinderProxy_addFrozenStateChangeCallback},
     {"removeFrozenStateChangeCallbackNative",
         "(Landroid/os/IBinder$FrozenStateChangeCallback;)Z", (void*)android_os_BinderProxy_removeFrozenStateChangeCallback},
+    {"isFrozenStateChangeCallbackSupportedNative",
+        "()Z", (void*)android_os_BinderProxy_frozenStateChangeCallbackSupported},
     {"getNativeFinalizer",  "()J", (void*)android_os_BinderProxy_getNativeFinalizer},
     {"getExtension",        "()Landroid/os/IBinder;", (void*)android_os_BinderProxy_getExtension},
 };

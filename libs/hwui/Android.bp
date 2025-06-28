@@ -143,8 +143,10 @@ cc_defaults {
                 "libandroidfw",
                 "libcrypto",
                 "libsync",
+                "libgui",
                 "libui",
                 "aconfig_text_flags_c_lib",
+                "aconfig_view_accessibility_flags_c_lib",
                 "server_configurable_flags",
                 "libaconfig_storage_read_api_cc",
                 "libgraphicsenv",
@@ -158,13 +160,24 @@ cc_defaults {
                 "libstatssocket_lazy",
                 "libtonemap",
             ],
-            whole_static_libs: ["hwui_flags_cc_lib"],
+            whole_static_libs: [
+                "hwui_flags_cc_lib",
+                "libsurfaceflingerflags",
+            ],
         },
         host: {
             static_libs: [
                 "libandroidfw",
                 "libhostgraphics",
                 "libutils",
+            ],
+        },
+        host_linux: {
+            shared_libs: [
+                "libaconfig_storage_read_api_cc",
+            ],
+            whole_static_libs: [
+                "hwui_flags_cc_lib",
             ],
         },
     },
@@ -207,6 +220,9 @@ java_sdk_library {
     visibility: [
         "//frameworks/base", // Framework
     ],
+    impl_library_visibility: [
+        "//frameworks/base/ravenwood",
+    ],
 
     srcs: [
         ":framework-graphics-srcs",
@@ -228,6 +244,14 @@ java_sdk_library {
     },
     // TODO: remove this
     unsafe_ignore_missing_latest_api: true,
+}
+
+filegroup {
+    name: "framework-graphics-ravenwood-policies",
+    srcs: [
+        "framework-graphics-ravenwood-policies.txt",
+    ],
+    visibility: ["//frameworks/base/ravenwood"],
 }
 
 filegroup {
@@ -459,6 +483,10 @@ cc_defaults {
         },
         linux: {
             srcs: ["platform/linux/utils/SharedLib.cpp"],
+            shared_libs: [
+                "libbinder",
+                "libbinder_ndk",
+            ],
         },
         darwin: {
             srcs: ["platform/darwin/utils/SharedLib.cpp"],
@@ -777,6 +805,7 @@ cc_test {
         "tests/unit/CommonPoolTests.cpp",
         "tests/unit/DamageAccumulatorTests.cpp",
         "tests/unit/DeferredLayerUpdaterTests.cpp",
+        "tests/unit/DrawTextFunctorTest.cpp",
         "tests/unit/EglManagerTests.cpp",
         "tests/unit/FatVectorTests.cpp",
         "tests/unit/GraphicsStatsServiceTests.cpp",

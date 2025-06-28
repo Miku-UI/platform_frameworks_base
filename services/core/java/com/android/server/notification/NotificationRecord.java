@@ -25,6 +25,7 @@ import static android.app.NotificationManager.IMPORTANCE_HIGH;
 import static android.app.NotificationManager.IMPORTANCE_LOW;
 import static android.app.NotificationManager.IMPORTANCE_MIN;
 import static android.app.NotificationManager.IMPORTANCE_UNSPECIFIED;
+import static android.service.notification.Adjustment.KEY_SUMMARIZATION;
 import static android.service.notification.NotificationListenerService.Ranking.USER_SENTIMENT_NEUTRAL;
 import static android.service.notification.NotificationListenerService.Ranking.USER_SENTIMENT_POSITIVE;
 
@@ -225,6 +226,11 @@ public final class NotificationRecord {
     // Whether an app has attempted to cancel this notification after it has been marked as
     // lifetime extended.
     private boolean mCanceledAfterLifetimeExtension = false;
+
+    // type of the bundle if the notification was classified
+    private @Adjustment.Types int mBundleType = Adjustment.TYPE_OTHER;
+
+    private String mSummarization = null;
 
     public NotificationRecord(Context context, StatusBarNotification sbn,
             NotificationChannel channel) {
@@ -586,6 +592,7 @@ public final class NotificationRecord {
         pw.println(prefix + "shortcut=" + notification.getShortcutId()
                 + " found valid? " + (mShortcutInfo != null));
         pw.println(prefix + "mUserVisOverride=" + getPackageVisibilityOverride());
+        pw.println(prefix + "hasSummarization=" + (mSummarization != null));
     }
 
     private void dumpNotification(PrintWriter pw, String prefix, Notification notification,
@@ -808,6 +815,18 @@ public final class NotificationRecord {
                             Adjustment.KEY_TYPE,
                             mChannel.getId());
                 }
+                if ((android.app.Flags.nmSummarizationUi() || android.app.Flags.nmSummarization())
+                        && signals.containsKey(KEY_SUMMARIZATION)) {
+                    CharSequence summary = signals.getCharSequence(KEY_SUMMARIZATION,
+                            signals.getString(KEY_SUMMARIZATION));
+                    if (summary != null) {
+                        mSummarization = summary.toString();
+                    } else {
+                        mSummarization = null;
+                    }
+                    EventLogTags.writeNotificationAdjusted(getKey(),
+                            KEY_SUMMARIZATION, Boolean.toString(mSummarization != null));
+                }
                 if (!signals.isEmpty() && adjustment.getIssuer() != null) {
                     mAdjustmentIssuer = adjustment.getIssuer();
                 }
@@ -976,6 +995,13 @@ public final class NotificationRecord {
                 return "asst";
             case MetricsEvent.IMPORTANCE_EXPLANATION_SYSTEM:
                 return "system";
+        }
+        return null;
+    }
+
+    public @Nullable String getSummarization() {
+        if ((android.app.Flags.nmSummarizationUi() || android.app.Flags.nmSummarization())) {
+            return mSummarization;
         }
         return null;
     }
@@ -1641,6 +1667,14 @@ public final class NotificationRecord {
         mCanceledAfterLifetimeExtension = canceledAfterLifetimeExtension;
     }
 
+    public @Adjustment.Types int getBundleType() {
+        return mBundleType;
+    }
+
+    public void setBundleType(@Adjustment.Types int bundleType) {
+        mBundleType = bundleType;
+    }
+
     /**
      * Whether this notification is a conversation notification.
      */
@@ -1665,9 +1699,13 @@ public final class NotificationRecord {
         }
 
         if (mTargetSdkVersion >= Build.VERSION_CODES.R
-                && notification.isStyle(Notification.MessagingStyle.class)
-                && (mShortcutInfo == null || isOnlyBots(mShortcutInfo.getPersons()))) {
-            return false;
+                && notification.isStyle(Notification.MessagingStyle.class)) {
+            if (mShortcutInfo == null || isOnlyBots(mShortcutInfo.getPersons())) {
+                return false;
+            }
+            if (Flags.notificationNoCustomViewConversations() && hasUndecoratedRemoteView()) {
+                return false;
+            }
         }
         if (mHasSentValidMsg && mShortcutInfo == null) {
             return false;

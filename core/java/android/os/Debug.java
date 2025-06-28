@@ -22,6 +22,7 @@ import android.annotation.Nullable;
 import android.app.AppGlobals;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.util.Log;
 
 import com.android.internal.util.FastPrintWriter;
@@ -2139,6 +2140,47 @@ public final class Debug
     }
 
     /**
+     * Like dumpHprofData(String), but takes an argument of bitmapFormat,
+     * which can be png, jpg, webp, or null (no bitmaps in heapdump).
+     *
+     * @hide
+     */
+    public static void dumpHprofData(String fileName, String bitmapFormat)
+            throws IOException {
+        try {
+            if (bitmapFormat != null) {
+                Bitmap.dumpAll(bitmapFormat);
+            }
+            VMDebug.dumpHprofData(fileName);
+        } finally {
+            if (bitmapFormat != null) {
+                Bitmap.dumpAll(null); // clear dump data
+            }
+        }
+    }
+
+    /**
+     * Like dumpHprofData(String, FileDescriptor), but takes an argument
+     * of bitmapFormat, which can be png, jpg, webp, or null (no bitmaps
+     * in heapdump).
+     *
+     * @hide
+     */
+    public static void dumpHprofData(String fileName, FileDescriptor fd,
+            String bitmapFormat) throws IOException {
+        try {
+            if (bitmapFormat != null) {
+                Bitmap.dumpAll(bitmapFormat);
+            }
+            VMDebug.dumpHprofData(fileName, fd);
+        } finally {
+            if (bitmapFormat != null) {
+                Bitmap.dumpAll(null); // clear dump data
+            }
+        }
+    }
+
+    /**
      * Collect "hprof" and send it to DDMS.  This may cause a GC.
      *
      * @throws UnsupportedOperationException if the VM was built without
@@ -2740,5 +2782,13 @@ public final class Debug
      * @hide
      */
     public static native boolean logAllocatorStats();
+
+    /**
+     * Return the amount of memory (in kB) allocated by kernel drivers through CMA.
+     * @return a non-negative value or -1 on error.
+     *
+     * @hide
+     */
+    public static native long getKernelCmaUsageKb();
 
 }

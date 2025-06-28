@@ -21,8 +21,6 @@ import static android.content.pm.PackageManager.FEATURE_LEANBACK;
 import static android.content.pm.PackageManager.FEATURE_TELEVISION;
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 
-import static com.android.shell.BugreportPrefs.STATE_HIDE;
-import static com.android.shell.BugreportPrefs.STATE_UNKNOWN;
 import static com.android.shell.BugreportPrefs.getWarningState;
 import static com.android.shell.flags.Flags.handleBugreportsForWear;
 
@@ -258,6 +256,9 @@ public class BugreportProgressService extends Service {
     private static final long REMOTE_MIN_KEEP_AGE = DateUtils.DAY_IN_MILLIS;
 
     private final Object mLock = new Object();
+
+/** Minimum delay between percentage points before sending an update notification */
+    private static final int MIN_NOTIFICATION_GAP = 10;
 
     /** Managed bugreport info (keyed by id) */
     @GuardedBy("mLock")
@@ -927,6 +928,7 @@ public class BugreportProgressService extends Service {
             Log.d(TAG, "Progress #" + info.id + ": " + percentageText);
         }
         info.lastProgress.set(progress);
+        info.lastUpdate.set(System.currentTimeMillis());
 
         sendForegroundabledNotification(info.id, builder.build());
     }
@@ -1343,7 +1345,11 @@ public class BugreportProgressService extends Service {
     }
 
     private boolean hasUserDecidedNotToGetWarningMessage() {
-        return getWarningState(mContext, STATE_UNKNOWN) == STATE_HIDE;
+        int bugreportStateUnknown = mContext.getResources().getInteger(
+                com.android.internal.R.integer.bugreport_state_unknown);
+        int bugreportStateHide = mContext.getResources().getInteger(
+                com.android.internal.R.integer.bugreport_state_hide);
+        return getWarningState(mContext, bugreportStateUnknown) == bugreportStateHide;
     }
 
     private void maybeShowWarningMessageAndCloseNotification(int id) {
@@ -1454,7 +1460,6 @@ public class BugreportProgressService extends Service {
      * Sends a notification indicating the bugreport has finished so use can share it.
      */
     private void sendBugreportNotification(BugreportInfo info, boolean takingScreenshot) {
-
         // Since adding the details can take a while, do it before notifying user.
         addDetailsToZipFile(info);
 
@@ -1475,6 +1480,7 @@ public class BugreportProgressService extends Service {
         final Notification.Builder builder = newBaseNotification(mContext)
                 .setContentTitle(title)
                 .setTicker(title)
+                .setProgress(100 /* max value of progress percentage */, 100, false)
                 .setOnlyAlertOnce(false)
                 .setContentText(content);
 
@@ -1506,7 +1512,7 @@ public class BugreportProgressService extends Service {
             builder.setSubText(info.getName());
         }
 
-        Log.v(TAG, "Sending 'Share' notification for ID " + info.id + ": " + title);
+        Log.d(TAG, "Sending 'Share' notification for ID " + info.id + ": " + title);
         NotificationManager.from(mContext).notify(info.id, builder.build());
     }
 
@@ -2736,6 +2742,11 @@ public class BugreportProgressService extends Service {
         if (progress > CAPPED_PROGRESS) {
             progress = CAPPED_PROGRESS;
         }
+
+        if ((progress - info.lastProgress.intValue()) < MIN_NOTIFICATION_GAP) {
+            return;
+        }
+
         if (DEBUG) {
             if (progress != info.progress.intValue()) {
                 Log.v(TAG, "Updating progress for name " + info.getName() + "(id: " + info.id
@@ -2743,7 +2754,6 @@ public class BugreportProgressService extends Service {
             }
         }
         info.progress.set(progress);
-        info.lastUpdate.set(System.currentTimeMillis());
 
         updateProgress(info);
     }

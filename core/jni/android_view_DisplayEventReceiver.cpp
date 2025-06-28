@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
 #define LOG_TAG "DisplayEventReceiver"
 
@@ -283,6 +284,8 @@ void NativeDisplayEventReceiver::dispatchModeRejected(PhysicalDisplayId displayI
                             displayId.value, modeId);
         ALOGV("receiver %p ~ Returned from Mode Rejected handler.", this);
     }
+
+    mMessageQueue->raiseAndClearException(env, "dispatchModeRejected");
 }
 
 void NativeDisplayEventReceiver::dispatchFrameRateOverrides(
@@ -313,7 +316,7 @@ void NativeDisplayEventReceiver::dispatchFrameRateOverrides(
         ALOGV("receiver %p ~ Returned from FrameRateOverride handler.", this);
     }
 
-    mMessageQueue->raiseAndClearException(env, "dispatchModeChanged");
+    mMessageQueue->raiseAndClearException(env, "dispatchFrameRateOverrides");
 }
 
 void NativeDisplayEventReceiver::dispatchHdcpLevelsChanged(PhysicalDisplayId displayId,

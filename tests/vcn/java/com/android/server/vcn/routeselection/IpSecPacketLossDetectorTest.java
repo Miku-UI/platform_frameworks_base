@@ -47,6 +47,9 @@ import android.net.IpSecTransformState;
 import android.os.OutcomeReceiver;
 import android.os.PowerManager;
 
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
 import com.android.server.vcn.routeselection.IpSecPacketLossDetector.PacketLossCalculationResult;
 import com.android.server.vcn.routeselection.IpSecPacketLossDetector.PacketLossCalculator;
 import com.android.server.vcn.routeselection.NetworkMetricMonitor.IpSecTransformWrapper;
@@ -54,6 +57,7 @@ import com.android.server.vcn.routeselection.NetworkMetricMonitor.NetworkMetricM
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -63,6 +67,8 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.concurrent.TimeUnit;
 
+@RunWith(AndroidJUnit4.class)
+@SmallTest
 public class IpSecPacketLossDetectorTest extends NetworkEvaluationTestBase {
     private static final String TAG = IpSecPacketLossDetectorTest.class.getSimpleName();
 
@@ -284,8 +290,11 @@ public class IpSecPacketLossDetectorTest extends NetworkEvaluationTestBase {
 
         // Stop the monitor
         mIpSecPacketLossDetector.close();
+        mIpSecPacketLossDetector.close();
         verifyStopped();
-        verify(mIpSecTransform).close();
+
+        verify(mIpSecTransform, never()).close();
+        verify(mContext).unregisterReceiver(any());
     }
 
     @Test

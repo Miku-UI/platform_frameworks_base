@@ -31,7 +31,6 @@ import static android.content.Intent.ACTION_MAIN_USER_LOCKSCREEN_KNOWLEDGE_FACTO
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.UserHandle.USER_ALL;
 import static android.os.UserHandle.USER_SYSTEM;
-import static android.security.Flags.reportPrimaryAuthAttempts;
 
 import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_NONE;
 import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PASSWORD_OR_PIN;
@@ -137,6 +136,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.notification.SystemNotificationChannels;
+import com.android.internal.pm.RoSystemFeatures;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.util.IndentingPrintWriter;
@@ -183,7 +183,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -340,8 +339,6 @@ public class LockSettingsService extends ILockSettings.Stub {
     private static final int[] SYSTEM_CREDENTIAL_UIDS = {
             Process.VPN_UID, Process.ROOT_UID, Process.SYSTEM_UID};
 
-    private HashMap<UserHandle, UserManager> mUserManagerCache = new HashMap<>();
-
     private final CopyOnWriteArrayList<LockSettingsStateListener> mLockSettingsStateListeners =
             new CopyOnWriteArrayList<>();
 
@@ -369,16 +366,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         @Override
         public void onBootPhase(int phase) {
             super.onBootPhase(phase);
-            if (phase == PHASE_ACTIVITY_MANAGER_READY) {
-                mLockSettingsService.migrateOldDataAfterSystemReady();
-                mLockSettingsService.deleteRepairModePersistentDataIfNeeded();
-            } else if (phase == PHASE_BOOT_COMPLETED) {
-                // In the case of an upgrade, PHASE_BOOT_COMPLETED means that a rollback to the old
-                // build can no longer occur.  This is the time to destroy any migrated protectors.
-                mLockSettingsService.destroyMigratedProtectors();
-
-                mLockSettingsService.loadEscrowData();
-            }
+            mLockSettingsService.onBootPhase(phase);
         }
 
         @Override
@@ -394,6 +382,21 @@ public class LockSettingsService extends ILockSettings.Stub {
         @Override
         public void onUserStopped(@NonNull TargetUser user) {
             mLockSettingsService.onUserStopped(user.getUserIdentifier());
+        }
+    }
+
+    private void onBootPhase(int phase) {
+        if (phase == SystemService.PHASE_ACTIVITY_MANAGER_READY) {
+            migrateOldDataAfterSystemReady();
+            deleteRepairModePersistentDataIfNeeded();
+        } else if (phase == SystemService.PHASE_BOOT_COMPLETED) {
+            mHandler.post(() -> {
+                // In the case of an upgrade, PHASE_BOOT_COMPLETED means that a rollback to the old
+                // build can no longer occur.  This is the time to destroy any migrated protectors.
+                destroyMigratedProtectors();
+
+                loadEscrowData();
+            });
         }
     }
 
@@ -432,9 +435,9 @@ public class LockSettingsService extends ILockSettings.Stub {
         }
         LockscreenCredential credential =
                 LockscreenCredential.createUnifiedProfilePassword(newPassword);
-        Arrays.fill(newPasswordChars, '\u0000');
-        Arrays.fill(newPassword, (byte) 0);
-        Arrays.fill(randomLockSeed, (byte) 0);
+        LockPatternUtils.zeroize(newPasswordChars);
+        LockPatternUtils.zeroize(newPassword);
+        LockPatternUtils.zeroize(randomLockSeed);
         return credential;
     }
 
@@ -445,10 +448,11 @@ public class LockSettingsService extends ILockSettings.Stub {
      * @param profileUserId  profile user Id
      * @param profileUserPassword  profile original password (when it has separated lock).
      */
+    @GuardedBy("mSpManager")
     private void tieProfileLockIfNecessary(int profileUserId,
             LockscreenCredential profileUserPassword) {
         // Only for profiles that shares credential with parent
-        if (!isCredentialSharableWithParent(profileUserId)) {
+        if (!isCredentialShareableWithParent(profileUserId)) {
             return;
         }
         // Do not tie profile when separate challenge is enabled
@@ -843,7 +847,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         if (android.os.Flags.allowPrivateProfile()
                 && android.multiuser.Flags.enableBiometricsToUnlockPrivateSpace()
                 && android.multiuser.Flags.enablePrivateSpaceFeatures()) {
-            UserProperties userProperties = mUserManager.getUserProperties(UserHandle.of(userId));
+            UserProperties userProperties = getUserProperties(userId);
             if (userProperties != null && userProperties.getAllowStoppingUserWithDelayedLocking()) {
                 return;
             }
@@ -903,14 +907,8 @@ public class LockSettingsService extends ILockSettings.Stub {
                 // Hide notification first, as tie profile lock takes time
                 hideEncryptionNotification(new UserHandle(userId));
 
-                if (android.app.admin.flags.Flags.fixRaceConditionInTieProfileLock()) {
-                    synchronized (mSpManager) {
-                        tieProfileLockIfNecessary(userId, LockscreenCredential.createNone());
-                    }
-                } else {
-                    if (isCredentialSharableWithParent(userId)) {
-                        tieProfileLockIfNecessary(userId, LockscreenCredential.createNone());
-                    }
+                synchronized (mSpManager) {
+                    tieProfileLockIfNecessary(userId, LockscreenCredential.createNone());
                 }
             }
         });
@@ -962,18 +960,12 @@ public class LockSettingsService extends ILockSettings.Stub {
                             && android.multiuser.Flags.enablePrivateSpaceFeatures()
                             && android.multiuser.Flags.enableBiometricsToUnlockPrivateSpace()) {
                         mHandler.post(() -> {
-                            try {
-                                UserProperties userProperties =
-                                        mUserManager.getUserProperties(UserHandle.of(userId));
-                                if (userProperties != null && userProperties
-                                        .getAllowStoppingUserWithDelayedLocking()) {
-                                    int strongAuthRequired = LockPatternUtils.StrongAuthTracker
-                                            .getDefaultFlags(mContext);
-                                    requireStrongAuth(strongAuthRequired, userId);
-                                }
-                            } catch (IllegalArgumentException e) {
-                                Slogf.d(TAG, "User %d does not exist or has been removed",
-                                        userId);
+                            UserProperties userProperties = getUserProperties(userId);
+                            if (userProperties != null && userProperties
+                                    .getAllowStoppingUserWithDelayedLocking()) {
+                                int strongAuthRequired = LockPatternUtils.StrongAuthTracker
+                                        .getDefaultFlags(mContext);
+                                requireStrongAuth(strongAuthRequired, userId);
                             }
                         });
                     }
@@ -1069,7 +1061,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         final int userCount = users.size();
         for (int i = 0; i < userCount; i++) {
             UserInfo user = users.get(i);
-            if (isCredentialSharableWithParent(user.id)
+            if (isCredentialShareableWithParent(user.id)
                     && !getSeparateProfileChallengeEnabledInternal(user.id)) {
                 success &= SyntheticPasswordCrypto.migrateLockSettingsKey(
                         PROFILE_KEY_NAME_ENCRYPT + user.id);
@@ -1324,7 +1316,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         mContext.enforceCallingOrSelfPermission(
                 Manifest.permission.MANAGE_WEAK_ESCROW_TOKEN,
                 "Requires MANAGE_WEAK_ESCROW_TOKEN permission.");
-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
+        if (!RoSystemFeatures.hasFeatureAutomotive(mContext)) {
             throw new IllegalArgumentException(
                     "Weak escrow token are only for automotive devices.");
         }
@@ -1374,11 +1366,7 @@ public class LockSettingsService extends ILockSettings.Stub {
                 mStorage.removeChildProfileLock(userId);
                 removeKeystoreProfileKey(userId);
             } else {
-                if (android.app.admin.flags.Flags.fixRaceConditionInTieProfileLock()) {
-                    synchronized (mSpManager) {
-                        tieProfileLockIfNecessary(userId, profileUserPassword);
-                    }
-                } else {
+                synchronized (mSpManager) {
                     tieProfileLockIfNecessary(userId, profileUserPassword);
                 }
             }
@@ -1540,7 +1528,7 @@ public class LockSettingsService extends ILockSettings.Stub {
                         + userId);
             }
         } finally {
-            Arrays.fill(password, (byte) 0);
+            LockPatternUtils.zeroize(password);
         }
     }
 
@@ -1573,7 +1561,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         decryptionResult = cipher.doFinal(encryptedPassword);
         LockscreenCredential credential = LockscreenCredential.createUnifiedProfilePassword(
                 decryptionResult);
-        Arrays.fill(decryptionResult, (byte) 0);
+        LockPatternUtils.zeroize(decryptionResult);
         try {
             long parentSid = getGateKeeperService().getSecureUserId(
                     mUserManager.getProfileParent(userId).id);
@@ -1642,7 +1630,7 @@ public class LockSettingsService extends ILockSettings.Stub {
             Thread.currentThread().interrupt();
         }
 
-        if (isCredentialSharableWithParent(userId)) {
+        if (isCredentialShareableWithParent(userId)) {
             if (!hasUnifiedChallenge(userId)) {
                 mBiometricDeferredQueue.processPendingLockoutResets();
             }
@@ -1651,7 +1639,7 @@ public class LockSettingsService extends ILockSettings.Stub {
 
         for (UserInfo profile : mUserManager.getProfiles(userId)) {
             if (profile.id == userId) continue;
-            if (!isCredentialSharableWithParent(profile.id)) continue;
+            if (!isCredentialShareableWithParent(profile.id)) continue;
 
             if (hasUnifiedChallenge(profile.id)) {
                 if (mUserManager.isUserRunning(profile.id)) {
@@ -1688,7 +1676,7 @@ public class LockSettingsService extends ILockSettings.Stub {
     }
 
     private Map<Integer, LockscreenCredential> getDecryptedPasswordsForAllTiedProfiles(int userId) {
-        if (isCredentialSharableWithParent(userId)) {
+        if (isCredentialShareableWithParent(userId)) {
             return null;
         }
         Map<Integer, LockscreenCredential> result = new ArrayMap<>();
@@ -1696,7 +1684,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         final int size = profiles.size();
         for (int i = 0; i < size; i++) {
             final UserInfo profile = profiles.get(i);
-            if (!isCredentialSharableWithParent(profile.id)) {
+            if (!isCredentialShareableWithParent(profile.id)) {
                 continue;
             }
             final int profileUserId = profile.id;
@@ -1731,7 +1719,7 @@ public class LockSettingsService extends ILockSettings.Stub {
      */
     private void synchronizeUnifiedChallengeForProfiles(int userId,
             Map<Integer, LockscreenCredential> profilePasswordMap) {
-        if (isCredentialSharableWithParent(userId)) {
+        if (isCredentialShareableWithParent(userId)) {
             return;
         }
         final boolean isSecure = isUserSecure(userId);
@@ -1740,7 +1728,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         for (int i = 0; i < size; i++) {
             final UserInfo profile = profiles.get(i);
             final int profileUserId = profile.id;
-            if (isCredentialSharableWithParent(profileUserId)) {
+            if (isCredentialShareableWithParent(profileUserId)) {
                 if (getSeparateProfileChallengeEnabledInternal(profileUserId)) {
                     continue;
                 }
@@ -1767,7 +1755,7 @@ public class LockSettingsService extends ILockSettings.Stub {
     }
 
     private boolean isProfileWithUnifiedLock(int userId) {
-        return isCredentialSharableWithParent(userId)
+        return isCredentialShareableWithParent(userId)
                 && !getSeparateProfileChallengeEnabledInternal(userId);
     }
 
@@ -1889,7 +1877,7 @@ public class LockSettingsService extends ILockSettings.Stub {
                 setSeparateProfileChallengeEnabledLocked(userId, true, /* unused */ null);
                 notifyPasswordChanged(credential, userId);
             }
-            if (isCredentialSharableWithParent(userId)) {
+            if (isCredentialShareableWithParent(userId)) {
                 // Make sure the profile doesn't get locked straight after setting challenge.
                 setDeviceUnlockedForUser(userId);
             }
@@ -1920,13 +1908,12 @@ public class LockSettingsService extends ILockSettings.Stub {
      * Set a new LSKF for the given user/profile. Only succeeds if the synthetic password for the
      * user is protected by the given {@param savedCredential}.
      * <p>
-     * When {@link android.security.Flags#clearStrongAuthOnAddPrimaryCredential()} is enabled and
+     * When {@link android.security.Flags#clearStrongAuthOnAddingPrimaryCredential()} is enabled and
      * setting a new credential where there was none, updates the strong auth state for
      * {@param userId} to <tt>STRONG_AUTH_NOT_REQUIRED</tt>.
      *
-     * @param savedCredential if the user is a profile with
-     * {@link UserManager#isCredentialSharableWithParent()} with unified challenge and
-     *   savedCredential is empty, LSS will try to re-derive the profile password internally.
+     * @param savedCredential if the user is a profile with unified challenge and savedCredential is
+     *     empty, LSS will try to re-derive the profile password internally.
      *     TODO (b/80170828): Fix this so profile password is always passed in.
      * @param isLockTiedToParent is {@code true} if {@code userId} is a profile and its new
      *     credentials are being tied to its parent's credentials.
@@ -1972,7 +1959,7 @@ public class LockSettingsService extends ILockSettings.Stub {
 
             onSyntheticPasswordUnlocked(userId, sp);
             setLockCredentialWithSpLocked(credential, sp, userId);
-            if (android.security.Flags.clearStrongAuthOnAddPrimaryCredential()
+            if (android.security.Flags.clearStrongAuthOnAddingPrimaryCredential()
                     && savedCredential.isNone() && !credential.isNone()) {
                 // Clear the strong auth value, since the LSKF has just been entered and set,
                 // but only when the previous credential was None.
@@ -2054,25 +2041,14 @@ public class LockSettingsService extends ILockSettings.Stub {
         return mInjector.getDevicePolicyManager().getPasswordHistoryLength(null, userId);
     }
 
-    private UserManager getUserManagerFromCache(int userId) {
-        UserHandle userHandle = UserHandle.of(userId);
-        if (mUserManagerCache.containsKey(userHandle)) {
-            return mUserManagerCache.get(userHandle);
-        }
-
-        try {
-            Context userContext = mContext.createPackageContextAsUser("system", 0, userHandle);
-            UserManager userManager = userContext.getSystemService(UserManager.class);
-            mUserManagerCache.put(userHandle, userManager);
-            return userManager;
-        } catch (PackageManager.NameNotFoundException e) {
-            throw new RuntimeException("Failed to create context for user " + userHandle, e);
-        }
+    private @Nullable UserProperties getUserProperties(int userId) {
+        return mInjector.getUserManagerInternal().getUserProperties(userId);
     }
 
     @VisibleForTesting /** Note: this method is overridden in unit tests */
-    protected boolean isCredentialSharableWithParent(int userId) {
-        return getUserManagerFromCache(userId).isCredentialSharableWithParent();
+    protected boolean isCredentialShareableWithParent(int userId) {
+        UserProperties props = getUserProperties(userId);
+        return props != null && props.isCredentialShareableWithParent();
     }
 
     /** Register the given WeakEscrowTokenRemovedListener. */
@@ -2266,7 +2242,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         } catch (RemoteException e) {
             Slogf.wtf(TAG, e, "Failed to unlock CE storage for %s user %d", userType, userId);
         } finally {
-            Arrays.fill(secret, (byte) 0);
+            LockPatternUtils.zeroize(secret);
         }
     }
 
@@ -2308,7 +2284,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         final List<UserInfo> profiles = mUserManager.getProfiles(userId);
         for (UserInfo pi : profiles) {
             // Unlock profile which shares credential with parent with unified lock
-            if (isCredentialSharableWithParent(pi.id)
+            if (isCredentialShareableWithParent(pi.id)
                     && !getSeparateProfileChallengeEnabledInternal(pi.id)
                     && mStorage.hasChildProfileLock(pi.id)) {
                 try {
@@ -2485,11 +2461,8 @@ public class LockSettingsService extends ILockSettings.Stub {
                 requireStrongAuth(STRONG_AUTH_REQUIRED_AFTER_LOCKOUT, userId);
             }
         }
-        if (reportPrimaryAuthAttempts()) {
-            final boolean success =
-                    response.getResponseCode() == VerifyCredentialResponse.RESPONSE_OK;
-            notifyLockSettingsStateListeners(success, userId);
-        }
+        final boolean success = response.getResponseCode() == VerifyCredentialResponse.RESPONSE_OK;
+        notifyLockSettingsStateListeners(success, userId);
         return response;
     }
 
@@ -3093,7 +3066,7 @@ public class LockSettingsService extends ILockSettings.Stub {
 
         activateEscrowTokens(sp, userId);
 
-        if (isCredentialSharableWithParent(userId)) {
+        if (isCredentialShareableWithParent(userId)) {
             if (getSeparateProfileChallengeEnabledInternal(userId)) {
                 setDeviceUnlockedForUser(userId);
             } else {
@@ -3266,8 +3239,7 @@ public class LockSettingsService extends ILockSettings.Stub {
      * Returns a fixed pseudorandom byte string derived from the user's synthetic password.
      * This is used to salt the password history hash to protect the hash against offline
      * bruteforcing, since rederiving this value requires a successful authentication.
-     * If user is a profile with {@link UserManager#isCredentialSharableWithParent()} true and with
-     * unified challenge, currentCredential is ignored.
+     * If user is a profile with unified challenge, currentCredential is ignored.
      */
     @Override
     public byte[] getHashFactor(LockscreenCredential currentCredential, int userId) {
@@ -3616,7 +3588,13 @@ public class LockSettingsService extends ILockSettings.Stub {
         }
 
         // Escrow tokens are enabled on automotive builds.
-        if (mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
+        if (RoSystemFeatures.hasFeatureAutomotive(mContext)) {
+            return;
+        }
+
+        UserInfo userInfo = mInjector.getUserManagerInternal().getUserInfo(userId);
+        if (userInfo != null && userInfo.isForTesting()) {
+            Slog.i(TAG, "Keeping escrow data for test-only user");
             return;
         }
 

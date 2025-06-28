@@ -32,10 +32,16 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.os.Parcel;
 
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.Arrays;
 
+@RunWith(AndroidJUnit4.class)
+@SmallTest
 public class VcnTransportInfoTest {
     private static final int SUB_ID = 1;
     private static final int NETWORK_ID = 5;

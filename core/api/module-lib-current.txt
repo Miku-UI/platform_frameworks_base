@@ -130,7 +130,6 @@ package android.content.pm {
 
   public abstract class PackageManager {
     method @NonNull public String getSdkSandboxPackageName();
-    method @FlaggedApi("android.content.pm.cloud_compilation_pm") @NonNull public static android.content.pm.SigningInfo getVerifiedSigningInfo(@NonNull String, int) throws android.content.pm.SigningInfoException;
     method @RequiresPermission(android.Manifest.permission.MAKE_UID_VISIBLE) public void makeUidVisible(int, int);
     field public static final String EXTRA_VERIFICATION_ROOT_HASH = "android.content.pm.extra.VERIFICATION_ROOT_HASH";
     field public static final int MATCH_STATIC_SHARED_AND_SDK_LIBRARIES = 67108864; // 0x4000000
@@ -139,18 +138,6 @@ package android.content.pm {
   @FlaggedApi("android.permission.flags.enhanced_confirmation_mode_apis_enabled") public class SignedPackage {
     method @NonNull public byte[] getCertificateDigest();
     method @NonNull public String getPackageName();
-  }
-
-  public final class SigningInfo implements android.os.Parcelable {
-    method @FlaggedApi("android.content.pm.cloud_compilation_pm") public boolean signersMatchExactly(@NonNull android.content.pm.SigningInfo);
-    field @FlaggedApi("android.content.pm.cloud_compilation_pm") public static final int VERSION_JAR = 1; // 0x1
-    field @FlaggedApi("android.content.pm.cloud_compilation_pm") public static final int VERSION_SIGNING_BLOCK_V2 = 2; // 0x2
-    field @FlaggedApi("android.content.pm.cloud_compilation_pm") public static final int VERSION_SIGNING_BLOCK_V3 = 3; // 0x3
-    field @FlaggedApi("android.content.pm.cloud_compilation_pm") public static final int VERSION_SIGNING_BLOCK_V4 = 4; // 0x4
-  }
-
-  @FlaggedApi("android.content.pm.cloud_compilation_pm") public class SigningInfoException extends java.lang.Exception {
-    method @FlaggedApi("android.content.pm.cloud_compilation_pm") public int getCode();
   }
 
 }
@@ -177,6 +164,16 @@ package android.hardware.usb {
 }
 
 package android.media {
+
+  public class AudioDeviceVolumeManager {
+    method @FlaggedApi("android.media.audio.unify_absolute_volume_management") @RequiresPermission(anyOf={android.Manifest.permission.MODIFY_AUDIO_ROUTING, android.Manifest.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED, android.Manifest.permission.BLUETOOTH_PRIVILEGED, android.Manifest.permission.BLUETOOTH_STACK}) public void setDeviceAbsoluteMultiVolumeBehavior(@NonNull android.media.AudioDeviceAttributes, @NonNull java.util.List<android.media.VolumeInfo>, @NonNull java.util.concurrent.Executor, @NonNull android.media.AudioDeviceVolumeManager.OnAudioDeviceVolumeChangedListener);
+    method @FlaggedApi("android.media.audio.unify_absolute_volume_management") @RequiresPermission(anyOf={android.Manifest.permission.MODIFY_AUDIO_ROUTING, android.Manifest.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED, android.Manifest.permission.BLUETOOTH_PRIVILEGED, android.Manifest.permission.BLUETOOTH_STACK}) public void setDeviceAbsoluteVolumeBehavior(@NonNull android.media.AudioDeviceAttributes, @NonNull android.media.VolumeInfo, @NonNull java.util.concurrent.Executor, @NonNull android.media.AudioDeviceVolumeManager.OnAudioDeviceVolumeChangedListener);
+  }
+
+  @FlaggedApi("android.media.audio.unify_absolute_volume_management") public static interface AudioDeviceVolumeManager.OnAudioDeviceVolumeChangedListener {
+    method public void onAudioDeviceVolumeAdjusted(@NonNull android.media.AudioDeviceAttributes, @NonNull android.media.VolumeInfo, int, int);
+    method public void onAudioDeviceVolumeChanged(@NonNull android.media.AudioDeviceAttributes, @NonNull android.media.VolumeInfo);
+  }
 
   public class AudioManager {
     method public void adjustStreamVolumeForUid(int, int, int, @NonNull String, int, int, int);
@@ -307,6 +304,8 @@ package android.net {
     field public static final int TYPE_VPN_LEGACY = 3; // 0x3
     field public static final int TYPE_VPN_NONE = -1; // 0xffffffff
     field public static final int TYPE_VPN_OEM = 4; // 0x4
+    field @FlaggedApi("android.net.platform.flags.vpn_type_oem_service_and_legacy") public static final int TYPE_VPN_OEM_LEGACY = 6; // 0x6
+    field @FlaggedApi("android.net.platform.flags.vpn_type_oem_service_and_legacy") public static final int TYPE_VPN_OEM_SERVICE = 5; // 0x5
     field public static final int TYPE_VPN_PLATFORM = 2; // 0x2
     field public static final int TYPE_VPN_SERVICE = 1; // 0x1
   }
@@ -413,6 +412,7 @@ package android.os {
     method public void invalidateCache();
     method public static void invalidateCache(@NonNull String, @NonNull String);
     method @Nullable public Result query(@NonNull Query);
+    method @FlaggedApi("android.os.ipc_data_cache_test_apis") public static void setCacheTestMode(boolean);
     field public static final String MODULE_BLUETOOTH = "bluetooth";
   }
 

@@ -612,6 +612,28 @@ jintArray android_os_Process_getExclusiveCores(JNIEnv* env, jobject clazz) {
     return cpus;
 }
 
+jlongArray android_os_Process_getSchedAffinity(JNIEnv* env, jobject clazz, jint pid) {
+    // sched_getaffinity will do memset 0 for the unset bits within set_alloc_size_byte
+    cpu_set_t cpu_set;
+    if (sched_getaffinity(pid, sizeof(cpu_set_t), &cpu_set) != 0) {
+        signalExceptionForError(env, errno, pid);
+        return nullptr;
+    }
+    int cpu_cnt = std::min(CPU_SETSIZE, get_nprocs_conf());
+    int masks_len = (int)(CPU_ALLOC_SIZE(cpu_cnt) / sizeof(__CPU_BITTYPE));
+    jlongArray masks = env->NewLongArray(masks_len);
+    if (masks == nullptr) {
+        jniThrowException(env, "java/lang/OutOfMemoryError", nullptr);
+        return nullptr;
+    }
+    jlong* mask_elements = env->GetLongArrayElements(masks, 0);
+    for (int i = 0; i < masks_len; i++) {
+        mask_elements[i] = cpu_set.__bits[i];
+    }
+    env->ReleaseLongArrayElements(masks, mask_elements, 0);
+    return masks;
+}
+
 static void android_os_Process_setCanSelfBackground(JNIEnv* env, jobject clazz, jboolean bgOk) {
     // Establishes the calling thread as illegal to put into the background.
     // Typically used only for the system process's main looper.
@@ -709,32 +731,6 @@ jint android_os_Process_getThreadPriority(JNIEnv* env, jobject clazz,
     }
     //ALOGI("Returning priority of %" PRId32 ": %" PRId32 "\n", pid, pri);
     return pri;
-}
-
-jboolean android_os_Process_setSwappiness(JNIEnv *env, jobject clazz,
-                                          jint pid, jboolean is_increased)
-{
-    char text[64];
-
-    if (is_increased) {
-        strcpy(text, "/sys/fs/cgroup/memory/sw/tasks");
-    } else {
-        strcpy(text, "/sys/fs/cgroup/memory/tasks");
-    }
-
-    struct stat st;
-    if (stat(text, &st) || !S_ISREG(st.st_mode)) {
-        return false;
-    }
-
-    int fd = open(text, O_WRONLY | O_CLOEXEC);
-    if (fd >= 0) {
-        sprintf(text, "%" PRId32, pid);
-        write(fd, text, strlen(text));
-        close(fd);
-    }
-
-    return true;
 }
 
 void android_os_Process_setArgV0(JNIEnv* env, jobject clazz, jstring name)
@@ -1520,7 +1516,7 @@ static const JNINativeMethod methods[] = {
         {"getProcessGroup", "(I)I", (void*)android_os_Process_getProcessGroup},
         {"createProcessGroup", "(II)I", (void*)android_os_Process_createProcessGroup},
         {"getExclusiveCores", "()[I", (void*)android_os_Process_getExclusiveCores},
-        {"setSwappiness", "(IZ)Z", (void*)android_os_Process_setSwappiness},
+        {"getSchedAffinity", "(I)[J", (void*)android_os_Process_getSchedAffinity},
         {"setArgV0Native", "(Ljava/lang/String;)V", (void*)android_os_Process_setArgV0},
         {"setUid", "(I)I", (void*)android_os_Process_setUid},
         {"setGid", "(I)I", (void*)android_os_Process_setGid},

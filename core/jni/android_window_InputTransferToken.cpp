@@ -52,7 +52,7 @@ static jlong nativeCreateFromBinder(JNIEnv* env, jclass clazz, jobject tokenBind
 }
 
 static void nativeWriteToParcel(JNIEnv* env, jclass clazz, jlong nativeObj, jobject parcelObj) {
-    InputTransferToken* inputTransferToken = reinterpret_cast<InputTransferToken*>(nativeObj);
+    auto inputTransferToken = reinterpret_cast<InputTransferToken*>(nativeObj);
     Parcel* parcel = parcelForJavaObject(env, parcelObj);
     inputTransferToken->writeToParcel(parcel);
 }
@@ -66,12 +66,12 @@ static jlong nativeReadFromParcel(JNIEnv* env, jclass clazz, jobject parcelObj) 
 }
 
 static jobject nativeGetBinderToken(JNIEnv* env, jclass clazz, jlong nativeObj) {
-    sp<InputTransferToken> inputTransferToken = reinterpret_cast<InputTransferToken*>(nativeObj);
+    auto inputTransferToken = reinterpret_cast<InputTransferToken*>(nativeObj);
     return javaObjectForIBinder(env, inputTransferToken->mToken);
 }
 
 static jlong nativeGetBinderTokenRef(JNIEnv*, jclass, jlong nativeObj) {
-    sp<InputTransferToken> inputTransferToken = reinterpret_cast<InputTransferToken*>(nativeObj);
+    auto inputTransferToken = reinterpret_cast<InputTransferToken*>(nativeObj);
     return reinterpret_cast<jlong>(inputTransferToken->mToken.get());
 }
 
@@ -104,12 +104,9 @@ static jlong nativeGetNativeInputTransferTokenFinalizer(JNIEnv* env, jclass claz
 
 static bool nativeEquals(JNIEnv* env, jclass clazz, jlong inputTransferTokenObj1,
                          jlong inputTransferTokenObj2) {
-    sp<InputTransferToken> inputTransferToken1(
-            reinterpret_cast<InputTransferToken*>(inputTransferTokenObj1));
-    sp<InputTransferToken> inputTransferToken2(
-            reinterpret_cast<InputTransferToken*>(inputTransferTokenObj2));
-
-    return inputTransferToken1 == inputTransferToken2;
+    auto token1 = reinterpret_cast<InputTransferToken*>(inputTransferTokenObj1);
+    auto token2 = reinterpret_cast<InputTransferToken*>(inputTransferTokenObj2);
+    return (token1 != nullptr) && (token2 != nullptr) && (*token1 == *token2);
 }
 
 static const JNINativeMethod sInputTransferTokenMethods[] = {

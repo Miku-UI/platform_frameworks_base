@@ -29,6 +29,7 @@ import static com.android.server.VcnManagementService.VDBG;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.TargetApi;
 import android.content.ContentResolver;
 import android.database.ContentObserver;
 import android.net.NetworkCapabilities;
@@ -39,6 +40,7 @@ import android.net.vcn.VcnConfig;
 import android.net.vcn.VcnGatewayConnectionConfig;
 import android.net.vcn.VcnManager.VcnErrorCode;
 import android.net.vcn.util.LogUtils;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.os.ParcelUuid;
@@ -75,6 +77,7 @@ import java.util.Set;
  *
  * @hide
  */
+@TargetApi(Build.VERSION_CODES.BAKLAVA)
 public class Vcn extends Handler {
     private static final String TAG = Vcn.class.getSimpleName();
 
@@ -205,6 +208,8 @@ public class Vcn extends Handler {
         this(vcnContext, subscriptionGroup, config, snapshot, vcnCallback, new Dependencies());
     }
 
+    // WARNING: This constructor executes on the binder thread. Thread safety MUST be ensured when
+    // accessing data within this constructor and any methods called from here.
     @VisibleForTesting(visibility = Visibility.PRIVATE)
     public Vcn(
             @NonNull VcnContext vcnContext,

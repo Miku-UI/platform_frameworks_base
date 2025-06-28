@@ -11,7 +11,6 @@ cc_library_static {
     name: "libservices.core",
     defaults: ["libservices.core-libs"],
 
-    cpp_std: "c++2a",
     cflags: [
         "-Wall",
         "-Werror",
@@ -62,6 +61,7 @@ cc_library_static {
         "com_android_server_SystemServer.cpp",
         "com_android_server_tv_TvUinputBridge.cpp",
         "com_android_server_tv_TvInputHal.cpp",
+        "com_android_server_UsbAlsaDevice.cpp",
         "com_android_server_UsbAlsaJackDetector.cpp",
         "com_android_server_UsbAlsaMidiDevice.cpp",
         "com_android_server_UsbDeviceManager.cpp",
@@ -80,6 +80,7 @@ cc_library_static {
         ":lib_oomConnection_native",
         ":lib_anrTimer_native",
         ":lib_lazilyRegisteredServices_native",
+        ":lib_phantomProcessList_native",
     ],
 
     include_dirs: [
@@ -168,7 +169,7 @@ cc_defaults {
         "android.hardware.broadcastradio@1.1",
         "android.hardware.contexthub@1.0",
         "android.hardware.common.fmq-V1-ndk",
-        "android.hardware.gnss-V3-cpp",
+        "android.hardware.gnss-V6-cpp",
         "android.hardware.gnss@1.0",
         "android.hardware.gnss@1.1",
         "android.hardware.gnss@2.0",
@@ -190,12 +191,8 @@ cc_defaults {
         "android.hardware.thermal@1.0",
         "android.hardware.thermal-V3-ndk",
         "android.hardware.tv.input@1.0",
-        "android.hardware.tv.input-V2-ndk",
+        "android.hardware.tv.input-V3-ndk",
         "android.hardware.vibrator-V3-ndk",
-        "android.hardware.vibrator@1.0",
-        "android.hardware.vibrator@1.1",
-        "android.hardware.vibrator@1.2",
-        "android.hardware.vibrator@1.3",
         "android.hardware.vr@1.0",
         "android.hidl.token@1.0-utils",
         "android.frameworks.schedulerservice@1.0",
@@ -203,9 +200,11 @@ cc_defaults {
         "android.frameworks.sensorservice-V1-ndk",
         "android.frameworks.stats@1.0",
         "android.frameworks.stats-V2-ndk",
+        "android.os.vibrator.flags-aconfig-cc",
         "android.system.suspend.control-V1-cpp",
         "android.system.suspend.control.internal-cpp",
         "android.system.suspend-V1-ndk",
+        "android_location_flags_c_lib",
         "server_configurable_flags",
         "service.incremental",
     ],
@@ -263,5 +262,12 @@ filegroup {
         "com_android_server_app_GameManagerService.cpp",
         "com_android_server_utils_LazyJniRegistrar.cpp",
         "com_android_server_vr_VrManagerService.cpp",
+    ],
+}
+
+filegroup {
+    name: "lib_phantomProcessList_native",
+    srcs: [
+        "com_android_server_am_PhantomProcessList.cpp",
     ],
 }

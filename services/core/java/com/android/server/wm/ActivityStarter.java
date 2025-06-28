@@ -58,13 +58,14 @@ import static android.os.Process.INVALID_UID;
 import static android.security.Flags.preventIntentRedirectAbortOrThrowException;
 import static android.security.Flags.preventIntentRedirectShowToast;
 import static android.view.Display.DEFAULT_DISPLAY;
-import static android.view.WindowManager.TRANSIT_NONE;
+import static android.view.WindowManager.TRANSIT_FLAG_AVOID_MOVE_TO_FRONT;
 import static android.view.WindowManager.TRANSIT_OPEN;
-import static android.view.WindowManager.TRANSIT_TO_FRONT;
 import static android.window.TaskFragmentOperation.OP_TYPE_START_ACTIVITY_IN_TASK_FRAGMENT;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_CONFIGURATION;
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_TASKS;
+import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS;
+import static com.android.internal.util.FrameworkStatsLog.INTENT_REDIRECT_BLOCKED;
 import static com.android.server.pm.PackageArchiver.isArchivingEnabled;
 import static com.android.server.wm.ActivityRecord.State.RESUMED;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.DEBUG_PERMISSIONS_REVIEW;
@@ -102,6 +103,7 @@ import android.app.PendingIntent;
 import android.app.ProfilerInfo;
 import android.app.WaitResult;
 import android.app.WindowConfiguration;
+import android.app.WindowConfiguration.WindowingMode;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.Disabled;
@@ -123,6 +125,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.OperationCanceledException;
 import android.os.RemoteException;
 import android.os.Trace;
 import android.os.UserHandle;
@@ -139,6 +142,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.HeavyWeightSwitcherActivity;
 import com.android.internal.app.IVoiceInteractor;
 import com.android.internal.protolog.ProtoLog;
+import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.UiThread;
 import com.android.server.am.ActivityManagerService.IntentCreatorToken;
 import com.android.server.am.PendingIntentRecord;
@@ -232,6 +236,7 @@ class ActivityStarter {
 
     // The task display area to launch the activity onto, barring any strong reason to do otherwise.
     private TaskDisplayArea mPreferredTaskDisplayArea;
+    @WindowingMode
     private int mPreferredWindowingMode;
 
     private Task mInTask;
@@ -621,7 +626,7 @@ class ActivityStarter {
             if ((intent.getExtendedFlags() & Intent.EXTENDED_FLAG_MISSING_CREATOR_OR_INVALID_TOKEN)
                     != 0) {
                 logAndThrowExceptionForIntentRedirect(supervisor.mService.mContext,
-                        "Unparceled intent does not have a creator token set.", intent,
+                        ActivityStarter.INTENT_REDIRECT_EXCEPTION_MISSING_OR_INVALID_TOKEN, intent,
                         intentCreatorUid, intentCreatorPackage, resolvedCallingUid,
                         resolvedCallingPackage, null);
             }
@@ -657,9 +662,9 @@ class ActivityStarter {
                             }
                         } catch (SecurityException securityException) {
                             logAndThrowExceptionForIntentRedirect(supervisor.mService.mContext,
-                                    "Creator URI Grant Caused Exception.", intent, intentCreatorUid,
-                                    intentCreatorPackage, resolvedCallingUid,
-                                    resolvedCallingPackage, securityException);
+                                    ActivityStarter.INTENT_REDIRECT_EXCEPTION_GRANT_URI_PERMISSION,
+                                    intent, intentCreatorUid, intentCreatorPackage,
+                                    resolvedCallingUid, resolvedCallingPackage, securityException);
                         }
                     }
                 } else {
@@ -681,9 +686,9 @@ class ActivityStarter {
                             }
                         } catch (SecurityException securityException) {
                             logAndThrowExceptionForIntentRedirect(supervisor.mService.mContext,
-                                    "Creator URI Grant Caused Exception.", intent, intentCreatorUid,
-                                    intentCreatorPackage, resolvedCallingUid,
-                                    resolvedCallingPackage, securityException);
+                                    ActivityStarter.INTENT_REDIRECT_EXCEPTION_GRANT_URI_PERMISSION,
+                                    intent, intentCreatorUid, intentCreatorPackage,
+                                    resolvedCallingUid, resolvedCallingPackage, securityException);
                         }
                     }
                 }
@@ -1107,8 +1112,11 @@ class ActivityStarter {
             if (sourceRecord != null) {
                 if (requestCode >= 0 && !sourceRecord.finishing) {
                     resultRecord = sourceRecord;
+                    request.logMessage.append(" (rr=");
+                } else {
+                    request.logMessage.append(" (sr=");
                 }
-                request.logMessage.append(" (sr=" + System.identityHashCode(sourceRecord) + ")");
+                request.logMessage.append(System.identityHashCode(sourceRecord) + ")");
             }
         }
 
@@ -1259,27 +1267,27 @@ class ActivityStarter {
                         request.ignoreTargetSecurity, inTask != null, null, resultRecord,
                         resultRootTask)) {
                     abort = logAndAbortForIntentRedirect(mService.mContext,
-                            "Creator checkStartAnyActivityPermission Caused abortion.",
+                            ActivityStarter.INTENT_REDIRECT_ABORT_START_ANY_ACTIVITY_PERMISSION,
                             intent, intentCreatorUid, intentCreatorPackage, callingUid,
                             callingPackage);
                 }
             } catch (SecurityException e) {
                 logAndThrowExceptionForIntentRedirect(mService.mContext,
-                        "Creator checkStartAnyActivityPermission Caused Exception.",
+                        ActivityStarter.INTENT_REDIRECT_EXCEPTION_START_ANY_ACTIVITY_PERMISSION,
                         intent, intentCreatorUid, intentCreatorPackage, callingUid, callingPackage,
                         e);
             }
             if (!mService.mIntentFirewall.checkStartActivity(intent, intentCreatorUid,
                     0, resolvedType, aInfo.applicationInfo)) {
                 abort = logAndAbortForIntentRedirect(mService.mContext,
-                        "Creator IntentFirewall.checkStartActivity Caused abortion.",
+                        ActivityStarter.INTENT_REDIRECT_ABORT_INTENT_FIREWALL_START_ACTIVITY,
                         intent, intentCreatorUid, intentCreatorPackage, callingUid, callingPackage);
             }
 
             if (!mService.getPermissionPolicyInternal().checkStartActivity(intent,
                     intentCreatorUid, intentCreatorPackage)) {
                 abort = logAndAbortForIntentRedirect(mService.mContext,
-                        "Creator PermissionPolicyService.checkStartActivity Caused abortion.",
+                        ActivityStarter.INTENT_REDIRECT_ABORT_PERMISSION_POLICY_START_ACTIVITY,
                         intent, intentCreatorUid, intentCreatorPackage, callingUid, callingPackage);
             }
         }
@@ -1838,6 +1846,9 @@ class ActivityStarter {
             // no-user-leaving implies not entering PiP.
             transition.setCanPipOnFinish(false /* canPipOnFinish */);
         }
+        if (avoidMoveToFront() && transition != null) {
+            transition.addFlag(TRANSIT_FLAG_AVOID_MOVE_TO_FRONT);
+        }
         if (isIndependentLaunch && transition != null) {
             transitionController.requestStartTransition(transition,
                     mTargetTask == null ? started.getTask() : mTargetTask,
@@ -1964,7 +1975,6 @@ class ActivityStarter {
             if (mLastStartActivityRecord != null) {
                 targetTaskTop.mLaunchSourceType = mLastStartActivityRecord.mLaunchSourceType;
             }
-            targetTaskTop.mTransitionController.collect(targetTaskTop);
             recordTransientLaunchIfNeeded(targetTaskTop);
             // Recycle the target task for this launch.
             startResult =
@@ -1984,6 +1994,11 @@ class ActivityStarter {
             if (startResult != START_SUCCESS) {
                 return startResult;
             }
+        }
+
+        if (com.android.window.flags.Flags.earlyLaunchHint()) {
+            mRootWindowContainer.startPowerModeLaunchIfNeeded(
+                    false /* forceSend */, mStartActivity);
         }
 
         if (mTargetRootTask == null) {
@@ -2058,8 +2073,10 @@ class ActivityStarter {
 
         mStartActivity.getTaskFragment().clearLastPausedActivity();
 
-        mRootWindowContainer.startPowerModeLaunchIfNeeded(
-                false /* forceSend */, mStartActivity);
+        if (!com.android.window.flags.Flags.earlyLaunchHint()) {
+            mRootWindowContainer.startPowerModeLaunchIfNeeded(
+                    false /* forceSend */, mStartActivity);
+        }
 
         final boolean isTaskSwitch = startedTask != prevTopTask;
         mTargetRootTask.startActivityLocked(mStartActivity, topRootTask, newTask, isTaskSwitch,
@@ -2187,6 +2204,9 @@ class ActivityStarter {
                 ? mLaunchParams.mPreferredTaskDisplayArea
                 : mRootWindowContainer.getDefaultTaskDisplayArea();
         mPreferredWindowingMode = mLaunchParams.mWindowingMode;
+        if (mLaunchParams.mNeedsSafeRegionBounds != null) {
+            r.setNeedsSafeRegionBounds(mLaunchParams.mNeedsSafeRegionBounds);
+        }
     }
 
     private TaskDisplayArea computeSuggestedLaunchDisplayArea(
@@ -2545,11 +2565,6 @@ class ActivityStarter {
                 if (actuallyMoved) {
                     // Only record if the activity actually moved.
                     mMovedToTopActivity = act;
-                    if (mNoAnimation) {
-                        act.mDisplayContent.prepareAppTransition(TRANSIT_NONE);
-                    } else {
-                        act.mDisplayContent.prepareAppTransition(TRANSIT_TO_FRONT);
-                    }
                 }
                 act.updateOptionsLocked(mOptions);
                 deliverNewIntent(act, intentGrants);
@@ -3033,6 +3048,12 @@ class ActivityStarter {
             }
         }
 
+        if (com.android.window.flags.Flags.fixLayoutExistingTask()) {
+            // Layout the task to ensure the Task is in correct bounds.
+            mSupervisor.getLaunchParamsController().layoutTask(intentTask,
+                    mStartActivity.info.windowLayout, mStartActivity, mSourceRecord, mOptions);
+        }
+
         // If the target task is not in the front, then we need to bring it to the front.
         final boolean differentTopTask;
         if (mTargetRootTask.getDisplayArea() == mPreferredTaskDisplayArea) {
@@ -3099,6 +3120,10 @@ class ActivityStarter {
         // options if set.
         if (mStartActivity.mLaunchCookie != null) {
             intentActivity.mLaunchCookie = mStartActivity.mLaunchCookie;
+            ProtoLog.v(WM_DEBUG_WINDOW_TRANSITIONS,
+                    "Updating launch cookie=%s act=%s(%d)",
+                    intentActivity.mLaunchCookie, intentActivity.packageName,
+                    System.identityHashCode(intentActivity));
         }
         if (mStartActivity.mPendingRemoteAnimation != null) {
             intentActivity.mPendingRemoteAnimation = mStartActivity.mPendingRemoteAnimation;
@@ -3244,11 +3269,14 @@ class ActivityStarter {
     private void sendCanNotEmbedActivityError(TaskFragment taskFragment,
             @EmbeddingCheckResult int result) {
         final String errMsg;
-        switch(result) {
+        boolean fatalError = true;
+        switch (result) {
             case EMBEDDING_DISALLOWED_NEW_TASK: {
                 errMsg = "Cannot embed " + mStartActivity + " that launched on another task"
                         + ",mLaunchMode=" + launchModeToString(mLaunchMode)
                         + ",mLaunchFlag=" + Integer.toHexString(mLaunchFlags);
+                // This is a known possible scenario, which should not be a fatal error.
+                fatalError = false;
                 break;
             }
             case EMBEDDING_DISALLOWED_MIN_DIMENSION_VIOLATION: {
@@ -3268,7 +3296,8 @@ class ActivityStarter {
             mService.mWindowOrganizerController.sendTaskFragmentOperationFailure(
                     taskFragment.getTaskFragmentOrganizer(), mRequest.errorCallbackToken,
                     taskFragment, OP_TYPE_START_ACTIVITY_IN_TASK_FRAGMENT,
-                    new SecurityException(errMsg));
+                    fatalError ? new SecurityException(errMsg)
+                            : new OperationCanceledException(errMsg));
         } else {
             // If the taskFragment is not organized, just dump error message as warning logs.
             Slog.w(TAG, errMsg);
@@ -3607,13 +3636,41 @@ class ActivityStarter {
         pw.println(mInTaskFragment);
     }
 
+    /**
+     * Error codes for intent redirect.
+     *
+     * @hide
+     */
+    @IntDef(prefix = {"INTENT_REDIRECT_"}, value = {
+            INTENT_REDIRECT_EXCEPTION_MISSING_OR_INVALID_TOKEN,
+            INTENT_REDIRECT_EXCEPTION_GRANT_URI_PERMISSION,
+            INTENT_REDIRECT_EXCEPTION_START_ANY_ACTIVITY_PERMISSION,
+            INTENT_REDIRECT_ABORT_START_ANY_ACTIVITY_PERMISSION,
+            INTENT_REDIRECT_ABORT_INTENT_FIREWALL_START_ACTIVITY,
+            INTENT_REDIRECT_ABORT_PERMISSION_POLICY_START_ACTIVITY,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface IntentRedirectErrorCode {
+    }
+
+    /**
+     * Error codes for intent redirect issues
+     */
+    static final int INTENT_REDIRECT_EXCEPTION_MISSING_OR_INVALID_TOKEN = 1;
+    static final int INTENT_REDIRECT_EXCEPTION_GRANT_URI_PERMISSION = 2;
+    static final int INTENT_REDIRECT_EXCEPTION_START_ANY_ACTIVITY_PERMISSION = 3;
+    static final int INTENT_REDIRECT_ABORT_START_ANY_ACTIVITY_PERMISSION = 4;
+    static final int INTENT_REDIRECT_ABORT_INTENT_FIREWALL_START_ACTIVITY = 5;
+    static final int INTENT_REDIRECT_ABORT_PERMISSION_POLICY_START_ACTIVITY = 6;
+
     static void logAndThrowExceptionForIntentRedirect(@NonNull Context context,
-            @NonNull String message, @NonNull Intent intent, int intentCreatorUid,
+            @IntentRedirectErrorCode int errorCode, @NonNull Intent intent, int intentCreatorUid,
             @Nullable String intentCreatorPackage, int callingUid, @Nullable String callingPackage,
             @Nullable SecurityException originalException) {
-        String msg = getIntentRedirectPreventedLogMessage(message, intent, intentCreatorUid,
+        String msg = getIntentRedirectPreventedLogMessage(errorCode, intent, intentCreatorUid,
                 intentCreatorPackage, callingUid, callingPackage);
         Slog.wtf(TAG, msg);
+        FrameworkStatsLog.write(INTENT_REDIRECT_BLOCKED, intentCreatorUid, callingUid, errorCode);
         if (preventIntentRedirectShowToast()) {
             UiThread.getHandler().post(
                     () -> Toast.makeText(context,
@@ -3627,12 +3684,13 @@ class ActivityStarter {
     }
 
     private static boolean logAndAbortForIntentRedirect(@NonNull Context context,
-            @NonNull String message, @NonNull Intent intent, int intentCreatorUid,
+            @IntentRedirectErrorCode int errorCode, @NonNull Intent intent, int intentCreatorUid,
             @Nullable String intentCreatorPackage, int callingUid,
             @Nullable String callingPackage) {
-        String msg = getIntentRedirectPreventedLogMessage(message, intent, intentCreatorUid,
+        String msg = getIntentRedirectPreventedLogMessage(errorCode, intent, intentCreatorUid,
                 intentCreatorPackage, callingUid, callingPackage);
         Slog.wtf(TAG, msg);
+        FrameworkStatsLog.write(INTENT_REDIRECT_BLOCKED, intentCreatorUid, callingUid, errorCode);
         if (preventIntentRedirectShowToast()) {
             UiThread.getHandler().post(
                     () -> Toast.makeText(context,
@@ -3643,11 +3701,38 @@ class ActivityStarter {
                 ENABLE_PREVENT_INTENT_REDIRECT_TAKE_ACTION, callingUid);
     }
 
-    private static String getIntentRedirectPreventedLogMessage(@NonNull String message,
+    private static String getIntentRedirectPreventedLogMessage(
+            @IntentRedirectErrorCode int errorCode,
             @NonNull Intent intent, int intentCreatorUid, @Nullable String intentCreatorPackage,
             int callingUid, @Nullable String callingPackage) {
-        return "[IntentRedirect]" + message + " intentCreatorUid: " + intentCreatorUid
+        String message = getIntentRedirectErrorMessageFromCode(errorCode);
+        return "[IntentRedirect Hardening] " + message + " intentCreatorUid: " + intentCreatorUid
                 + "; intentCreatorPackage: " + intentCreatorPackage + "; callingUid: " + callingUid
                 + "; callingPackage: " + callingPackage + "; intent: " + intent;
+    }
+
+    private static String getIntentRedirectErrorMessageFromCode(
+            @IntentRedirectErrorCode int errorCode) {
+        return switch (errorCode) {
+            case INTENT_REDIRECT_EXCEPTION_MISSING_OR_INVALID_TOKEN ->
+                    "INTENT_REDIRECT_EXCEPTION_MISSING_OR_INVALID_TOKEN"
+                        + " (Unparceled intent does not have a creator token set, throw exception.)";
+            case INTENT_REDIRECT_EXCEPTION_GRANT_URI_PERMISSION ->
+                    "INTENT_REDIRECT_EXCEPTION_GRANT_URI_PERMISSION"
+                            + " (Creator URI permission grant throw exception.)";
+            case INTENT_REDIRECT_EXCEPTION_START_ANY_ACTIVITY_PERMISSION ->
+                    "INTENT_REDIRECT_ABORT_START_ANY_ACTIVITY_PERMISSION"
+                            + " (Creator checkStartAnyActivityPermission, throw exception)";
+            case INTENT_REDIRECT_ABORT_START_ANY_ACTIVITY_PERMISSION ->
+                    "INTENT_REDIRECT_ABORT_START_ANY_ACTIVITY_PERMISSION"
+                            + " (Creator checkStartAnyActivityPermission, abort)";
+            case INTENT_REDIRECT_ABORT_INTENT_FIREWALL_START_ACTIVITY ->
+                    "INTENT_REDIRECT_ABORT_INTENT_FIREWALL_START_ACTIVITY"
+                            + " (Creator IntentFirewall.checkStartActivity, abort)";
+            case INTENT_REDIRECT_ABORT_PERMISSION_POLICY_START_ACTIVITY ->
+                    "INTENT_REDIRECT_ABORT_PERMISSION_POLICY_START_ACTIVITY"
+                            + " (Creator PermissionPolicyService.checkStartActivity, abort)";
+            default -> "Unknown error code: " + errorCode;
+        };
     }
 }

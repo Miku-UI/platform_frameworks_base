@@ -16,13 +16,18 @@ android_test {
     name: "FrameworksVcnTests",
     // For access hidden connectivity methods in tests
     defaults: ["framework-connectivity-test-defaults"],
+
+    min_sdk_version: "36",
+
     srcs: [
         "java/**/*.java",
         "java/**/*.kt",
     ],
     platform_apis: true,
-    test_suites: ["device-tests"],
-    certificate: "platform",
+    test_suites: [
+        "general-tests",
+        "mts-tethering",
+    ],
     static_libs: [
         "android.net.vcn.flags-aconfig-java-export",
         "androidx.test.rules",

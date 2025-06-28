@@ -16,7 +16,9 @@
 
 package com.android.server;
 
+import android.annotation.TargetApi;
 import android.content.Context;
+import android.os.Build;
 import android.util.Log;
 
 import com.android.tools.r8.keepanno.annotations.KeepItemKind;
@@ -30,13 +32,32 @@ import com.android.tools.r8.keepanno.annotations.UsedByReflection;
 // Without this annotation, this class will be treated as unused class and be removed during build
 // time.
 @UsedByReflection(kind = KeepItemKind.CLASS_AND_METHODS)
+@TargetApi(Build.VERSION_CODES.BAKLAVA)
 public final class ConnectivityServiceInitializerB extends SystemService {
     private static final String TAG = ConnectivityServiceInitializerB.class.getSimpleName();
     private final VcnManagementService mVcnManagementService;
 
+    // STOPSHIP: b/385203616 This static flag is for handling a temporary case when the mainline
+    // module prebuilt has updated to register the VCN but the platform change to remove
+    // registration is not merged. After mainline prebuilt is updated, we should merge the platform
+    // ASAP and remove this static check. This check is safe because both mainline and platform
+    // registration are triggered from the same method on the same thread.
+    private static boolean sIsRegistered = false;
+
     public ConnectivityServiceInitializerB(Context context) {
         super(context);
-        mVcnManagementService = VcnManagementService.create(context);
+
+        if (!sIsRegistered) {
+            mVcnManagementService = VcnManagementService.create(context);
+            sIsRegistered = true;
+        } else {
+            mVcnManagementService = null;
+            Log.e(
+                    TAG,
+                    "Ignore this registration since VCN is already registered. It will happen when"
+                        + " the mainline module prebuilt has updated to register the VCN but the"
+                        + " platform change to remove registration is not merged.");
+        }
     }
 
     @Override

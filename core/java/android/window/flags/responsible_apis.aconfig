@@ -88,3 +88,10 @@ flag {
     description: "Clear the allowlist duration when clearAllowBgActivityStarts is called"
     bug: "322159724"
 }
+
+flag {
+    name: "bal_additional_logging"
+    namespace: "responsible_apis"
+    description: "Enable additional logging."
+    bug: "403398176"
+}

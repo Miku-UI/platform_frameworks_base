@@ -31,12 +31,18 @@ import android.net.NetworkCapabilities;
 import android.net.TelephonyNetworkSpecifier;
 import android.net.wifi.WifiInfo;
 
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.Arrays;
 import java.util.Collections;
 
+@RunWith(AndroidJUnit4.class)
+@SmallTest
 public class VcnUtilsTest {
     private static final int SUB_ID = 1;
 

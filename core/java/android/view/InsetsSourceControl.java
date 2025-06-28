@@ -142,6 +142,10 @@ public class InsetsSourceControl implements Parcelable {
         return mInsetsHint;
     }
 
+    public boolean isFake() {
+        return mLeash == null && Insets.NONE.equals(mInsetsHint);
+    }
+
     public void setSkipAnimationOnce(boolean skipAnimation) {
         mSkipAnimationOnce = skipAnimation;
     }
@@ -190,7 +194,7 @@ public class InsetsSourceControl implements Parcelable {
     }
 
     public void release(Consumer<SurfaceControl> surfaceReleaseConsumer) {
-        if (mLeash != null) {
+        if (mLeash != null && mLeash.isValid()) {
             surfaceReleaseConsumer.accept(mLeash);
         }
     }

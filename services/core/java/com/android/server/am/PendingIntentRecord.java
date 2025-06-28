@@ -668,12 +668,13 @@ public final class PendingIntentRecord extends IIntentSender.Stub {
                                 getBackgroundStartPrivilegesForActivitySender(
                                         mAllowBgActivityStartsForBroadcastSender, allowlistToken,
                                         options, callingUid);
+                        final Bundle extras = createSafeActivityOptionsBundle(options);
                         // If a completion callback has been requested, require
                         // that the broadcast be delivered synchronously
                         int sent = controller.mAmInternal.broadcastIntentInPackage(key.packageName,
                                 key.featureId, uid, callingUid, callingPid, finalIntent,
                                 resolvedType, finishedReceiverThread, finishedReceiver, code, null,
-                                null, requiredPermission, options, (finishedReceiver != null),
+                                extras, requiredPermission, options, (finishedReceiver != null),
                                 false, userId, backgroundStartPrivileges,
                                 null /* broadcastAllowList */);
                         if (sent == ActivityManager.BROADCAST_SUCCESS) {
@@ -714,6 +715,32 @@ public final class PendingIntentRecord extends IIntentSender.Stub {
         }
 
         return res;
+    }
+
+    /**
+     * Creates a safe ActivityOptions bundle with only the launchDisplayId set.
+     *
+     * <p>This prevents unintended data from being sent to the app process. The resulting bundle
+     * is then used by {@link ActivityThread#createDisplayContextIfNeeded} to create a display
+     * context for the {@link BroadcastReceiver}, ensuring that activities launched from the
+     * receiver's context are started on the correct display.
+     *
+     * @param optionsBundle The original ActivityOptions bundle.
+     * @return A new bundle containing only the launchDisplayId from the original options, or null
+     * if the original bundle is null.
+     */
+    @Nullable
+    private Bundle createSafeActivityOptionsBundle(@Nullable Bundle optionsBundle) {
+        if (!com.android.window.flags.Flags.supportWidgetIntentsOnConnectedDisplay()) {
+            return null;
+        }
+        if (optionsBundle == null) {
+            return null;
+        }
+        final ActivityOptions options = ActivityOptions.fromBundle(optionsBundle);
+        return ActivityOptions.makeBasic()
+                .setLaunchDisplayId(options.getLaunchDisplayId())
+                .toBundle();
     }
 
     @VisibleForTesting BackgroundStartPrivileges getBackgroundStartPrivilegesForActivitySender(

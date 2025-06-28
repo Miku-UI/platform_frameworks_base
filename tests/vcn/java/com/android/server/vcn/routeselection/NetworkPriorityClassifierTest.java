@@ -45,13 +45,19 @@ import android.net.vcn.VcnWifiUnderlyingNetworkTemplate;
 import android.os.PersistableBundle;
 import android.util.ArraySet;
 
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+@RunWith(AndroidJUnit4.class)
+@SmallTest
 public class NetworkPriorityClassifierTest extends NetworkEvaluationTestBase {
     private UnderlyingNetworkRecord mWifiNetworkRecord;
     private UnderlyingNetworkRecord mCellNetworkRecord;

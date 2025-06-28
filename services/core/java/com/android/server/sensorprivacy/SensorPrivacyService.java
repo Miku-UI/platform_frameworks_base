@@ -131,7 +131,6 @@ import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
-import com.android.internal.annotations.KeepForWeakReference;
 import com.android.internal.camera.flags.Flags;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.os.BackgroundThread;
@@ -536,8 +535,12 @@ public final class SensorPrivacyService extends SystemService {
                     user.getIdentifier());
             String inputMethodPackageName = null;
             if (inputMethodComponent != null) {
-                inputMethodPackageName = ComponentName.unflattenFromString(
-                        inputMethodComponent).getPackageName();
+                ComponentName component = ComponentName.unflattenFromString(inputMethodComponent);
+                if (component != null) {
+                    inputMethodPackageName = component.getPackageName();
+                } else {
+                    Log.w(TAG, "Failed to parse inputMethodComponent: " + inputMethodComponent);
+                }
             }
 
             int capability;
@@ -2004,11 +2007,7 @@ public final class SensorPrivacyService extends SystemService {
     }
 
     private class CallStateHelper {
-        // TelephonyCallback instances are only weakly referenced when registered, so we need
-        // to ensure these fields are kept during optimization to preserve lifecycle semantics.
-        @KeepForWeakReference
         private final OutgoingEmergencyStateCallback mEmergencyStateCallback;
-        @KeepForWeakReference
         private final CallStateCallback mCallStateCallback;
 
         private boolean mIsInEmergencyCall;

@@ -40,7 +40,6 @@ import static android.view.WindowManager.LayoutParams.FIRST_APPLICATION_WINDOW;
 import static android.view.WindowManager.LayoutParams.LAST_APPLICATION_WINDOW;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_TASKS;
-import static com.android.launcher3.Flags.enableUseTopVisibleActivityForExcludeFromRecentTask;
 import static com.android.server.wm.ActivityRecord.State.RESUMED;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.DEBUG_RECENTS;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.DEBUG_RECENTS_TRIM_TASKS;
@@ -50,6 +49,7 @@ import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_ATM;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.ActivityTaskSupervisor.REMOVE_FROM_RECENTS;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityTaskManager;
@@ -85,6 +85,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.am.ActivityManagerService;
+import com.android.window.flags.Flags;
 
 import com.google.android.collect.Sets;
 
@@ -1471,9 +1472,10 @@ class RecentTasks {
      * @return whether the given active task should be presented to the user through SystemUI.
      */
     @VisibleForTesting
-    boolean isVisibleRecentTask(Task task) {
+    boolean isVisibleRecentTask(@NonNull Task task) {
         if (DEBUG_RECENTS_TRIM_TASKS) {
             Slog.d(TAG, "isVisibleRecentTask: task=" + task
+                    + " isForceExcludedFromRecents=" + task.isForceExcludedFromRecents()
                     + " minVis=" + mMinNumVisibleTasks + " maxVis=" + mMaxNumVisibleTasks
                     + " sessionDuration=" + mActiveTasksSessionDurationMs
                     + " inactiveDuration=" + task.getInactiveDuration()
@@ -1481,6 +1483,11 @@ class RecentTasks {
                     + " windowingMode=" + task.getWindowingMode()
                     + " isAlwaysOnTopWhenVisible=" + task.isAlwaysOnTopWhenVisible()
                     + " intentFlags=" + task.getBaseIntent().getFlags());
+        }
+
+        // Ignore the task if it is force excluded from recents.
+        if (Flags.excludeTaskFromRecents() && task.isForceExcludedFromRecents()) {
+            return false;
         }
 
         switch (task.getActivityType()) {
@@ -1533,9 +1540,9 @@ class RecentTasks {
             boolean skipExcludedCheck) {
         if (!skipExcludedCheck) {
             // Keep the most recent task of home display even if it is excluded from recents.
-            final boolean isExcludeFromRecents =
-                    (task.getBaseIntent().getFlags() & FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                            == FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
+            final boolean isExcludeFromRecents = task.getBaseIntent() != null
+                    && (task.getBaseIntent().getFlags() & FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                    == FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
             if (isExcludeFromRecents) {
                 if (DEBUG_RECENTS_TRIM_TASKS) {
                     Slog.d(TAG,
@@ -1546,12 +1553,7 @@ class RecentTasks {
                 }
                 // The Recents is only supported on default display now, we should only keep the
                 // most recent task of home display.
-                boolean isMostRecentTask;
-                if (enableUseTopVisibleActivityForExcludeFromRecentTask()) {
-                    isMostRecentTask = task.getTopVisibleActivity() != null;
-                } else {
-                    isMostRecentTask = taskIndex == 0;
-                }
+                boolean isMostRecentTask = task.getTopVisibleActivity() != null;
                 return (task.isOnHomeDisplay() && isMostRecentTask);
             }
         }

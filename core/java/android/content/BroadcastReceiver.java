@@ -52,6 +52,8 @@ import com.android.internal.os.DebugStore;
  * <a href="{@docRoot}guide/components/broadcasts.html">Broadcasts</a> developer guide.</p></div>
  *
  */
+@android.ravenwood.annotation.RavenwoodPartiallyAllowlisted
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
 public abstract class BroadcastReceiver {
     @UnsupportedAppUsage
     private PendingResult mPendingResult;
@@ -261,7 +263,7 @@ public abstract class BroadcastReceiver {
                         1);
             }
             if (DEBUG_STORE_ENABLED) {
-                DebugStore.recordFinish(mReceiverClassName);
+                DebugStore.recordFinish(System.identityHashCode(this));
             }
 
             if (mType == TYPE_COMPONENT) {
@@ -360,6 +362,7 @@ public abstract class BroadcastReceiver {
         }
     }
 
+    @android.ravenwood.annotation.RavenwoodKeep
     public BroadcastReceiver() {
     }
 
@@ -441,7 +444,7 @@ public abstract class BroadcastReceiver {
         PendingResult res = mPendingResult;
         mPendingResult = null;
         if (DEBUG_STORE_ENABLED) {
-            DebugStore.recordGoAsync(getClass().getName());
+            DebugStore.recordGoAsync(System.identityHashCode(res));
         }
         if (res != null && Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
             res.mReceiverClassName = getClass().getName();

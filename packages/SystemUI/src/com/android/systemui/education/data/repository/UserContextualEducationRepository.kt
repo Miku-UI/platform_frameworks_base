@@ -113,7 +113,6 @@ constructor(
 
     private val datastore = MutableStateFlow<DataStore<Preferences>?>(null)
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private val prefData: Flow<Preferences> = datastore.filterNotNull().flatMapLatest { it.data }
 
     override val keyboardShortcutTriggered: Flow<GestureType> =
@@ -122,16 +121,8 @@ constructor(
                     InputManager.KeyGestureEventListener { event ->
                         // Only store keyboard shortcut time for gestures providing keyboard
                         // education
-                        val shortcutType =
-                            when (event.keyGestureType) {
-                                KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_ALL_APPS,
-                                KeyGestureEvent.KEY_GESTURE_TYPE_ALL_APPS -> ALL_APPS
-
-                                else -> null
-                            }
-
-                        if (shortcutType != null) {
-                            trySendWithFailureLogging(shortcutType, TAG)
+                        if (event.keyGestureType == KeyGestureEvent.KEY_GESTURE_TYPE_ALL_APPS) {
+                            trySendWithFailureLogging(ALL_APPS, TAG)
                         }
                     }
 

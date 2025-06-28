@@ -1034,7 +1034,7 @@ class JobConcurrencyManager {
                 for (int p = preferredUidOnly.size() - 1; p >= 0; --p) {
                     final ContextAssignment assignment = preferredUidOnly.get(p);
                     final JobStatus runningJob = assignment.context.getRunningJobLocked();
-                    if (runningJob.getUid() != nextPending.getUid()) {
+                    if (runningJob == null || runningJob.getUid() != nextPending.getUid()) {
                         continue;
                     }
                     final int jobBias = mService.evaluateJobBiasLocked(runningJob);
@@ -1916,8 +1916,9 @@ class JobConcurrencyManager {
         for (int i = 0; i < mActiveServices.size(); i++) {
             final JobServiceContext jc = mActiveServices.get(i);
             final JobStatus js = jc.getRunningJobLocked();
-            if (jc.stopIfExecutingLocked(pkgName, userId, namespace, matchJobId, jobId,
-                    stopReason, internalStopReason)) {
+            if (js != null &&
+                    jc.stopIfExecutingLocked(pkgName, userId, namespace,
+                        matchJobId, jobId, stopReason, internalStopReason)) {
                 foundSome = true;
                 pw.print("Stopping job: ");
                 js.printUniqueId(pw);
@@ -2038,8 +2039,8 @@ class JobConcurrencyManager {
         DeviceConfig.Properties properties =
                 DeviceConfig.getProperties(DeviceConfig.NAMESPACE_JOB_SCHEDULER);
 
-        // Concurrency limit should be in the range [8, MAX_CONCURRENCY_LIMIT].
-        mSteadyStateConcurrencyLimit = Math.max(8, Math.min(MAX_CONCURRENCY_LIMIT,
+        // Concurrency limit should be in the range [1, MAX_CONCURRENCY_LIMIT].
+        mSteadyStateConcurrencyLimit = Math.max(1, Math.min(MAX_CONCURRENCY_LIMIT,
                 properties.getInt(KEY_CONCURRENCY_LIMIT, DEFAULT_CONCURRENCY_LIMIT)));
 
         mScreenOffAdjustmentDelayMs = properties.getLong(
