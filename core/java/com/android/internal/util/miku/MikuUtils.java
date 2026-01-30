@@ -185,7 +185,7 @@ public class MikuUtils {
         }
     }
 
-    public static void sendKeycode(int keycode) {
+    public static void sendKeycode(Context context, int keycode) {
         long when = SystemClock.uptimeMillis();
         final KeyEvent evDown = new KeyEvent(when, when, KeyEvent.ACTION_DOWN, keycode, 0,
                 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
@@ -197,14 +197,14 @@ public class MikuUtils {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                InputManager.getInstance().injectInputEvent(evDown,
+                context.getSystemService(InputManager.class).injectInputEvent(evDown,
                         InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
             }
         });
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                InputManager.getInstance().injectInputEvent(evUp,
+                context.getSystemService(InputManager.class).injectInputEvent(evUp,
                         InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
             }
         }, 20);
